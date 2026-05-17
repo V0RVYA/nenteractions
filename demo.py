@@ -17,7 +17,8 @@ statevars = [("statevar1", spa.SemanticPointer),
 
 table = {
         (voc["Apple"], voc["Banana"], None, 1): (voc["Banana"], voc["Apple"], StateVar("statevar1", "bananapass"), 0), 
-        (voc["Banana"], voc["Apple"], None, 0): (voc["Apple"], voc["Banana"], InputVar("a", "dummyin"), 1)
+        (voc["Banana"], voc["Apple"], None, 0): (voc["Cherry"], voc["Banana"], InputVar("a", "dummyin"), 2),
+        (voc["Cherry"], voc["Banana"], None, 2): (voc["Apple"], voc["Banana"], None, 1)
         }
 
 inputs = [
