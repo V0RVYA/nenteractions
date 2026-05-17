@@ -1,6 +1,7 @@
 import nengo
 import nengo_spa as spa
 import numpy as np
+import importlib
 
 from neural_dfa import DFA, InputVar, StateVar
 
@@ -17,7 +18,8 @@ statevars = [("statevar1", spa.SemanticPointer),
 
 table = {
         (voc["Apple"], voc["Banana"], None, 1): (voc["Banana"], voc["Apple"], StateVar("statevar1", "bananapass"), 0), 
-        (voc["Banana"], voc["Apple"], None, 0): (voc["Apple"], voc["Banana"], InputVar("a", "dummyin"), 1)
+        (voc["Banana"], voc["Apple"], None, 0): (voc["Apple"], voc["Banana"], InputVar("a", "dummyin"), 1),
+        (voc["Cherry"], voc["Banana"], None, 0): (voc["Apple"], voc["Banana"], InputVar("a", "dummyin"), 1)
         }
 
 inputs = [
