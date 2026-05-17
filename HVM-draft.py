@@ -157,3 +157,4 @@ with spa.Network() as model:
 
     for outnode, state in zip(dfa.ordered_outputs, output_states):
         nengo.Connection(outnode, state.input)
+
