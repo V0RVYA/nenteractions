@@ -14,80 +14,80 @@ voc = spa.Vocabulary(d)
 ###################################
 #     The Memory Architecture
 ###################################
-def ports_handler(ports, dim, vocab, theta, keys, nloc, vloc):
-    #The function below manages the signals to manipulate the ports using spa pointers for keys, tags and values
-    # -> need to split keys into nodes and vars -> handle that -> pass back to 2 distinct key dictionaries -> rejig all conditonals to work with it
-    ports = ports
-    keys = keys
-    nloc = nloc
-    vloc = vloc
-    theta = theta
-
-    def is_var_or_node(tag):
-        val = False
-        node = False
-        nodes_list = [vocab["T_CON"].v, vocab["T_DUP"].v, vocab["T_OPR"].v, vocab["T_SWI"].v]
-        if tag.dot(vocab.["T_VAR"].v) > theta:
-            val = True
-        elif:
-            for i in nodes_list:
-                if tag.dot(i) > theta:
-                    node = True
-        return val, node
-
-
-    def process_port(t, x):
-        command = x[:dim]
-        temp1 = x[dim:dim*2]
-        temp2 = x[dim*2:dim*3]
-        
-        if command.dot(vocab["P_LENGTH"].v) > theta:
-            pass
-        elif command.dot(vocab["P_ADD"].v) > theta:
-            print("cunt")
-            empty = hp.check_key_empty(keys, ports)
-            val_true, node_true = is_var_or_node(temp1)
-            if empty == 0:
-                str_key = str(len(ports))
-                vocab.populate(f"k_{str_key}")
-                keys.append(vocab[f"k_{str_key}"].v)
-                ports[vocab[f"k_{str_key}"].v] = temp1, temp2
-            elif empty != 0:
-                ports[empty] = temp1, temp2
-            temp1 = np.zeros(dim)
-            temp2 = np.zeros(dim)
-        elif command.dot(vocab["P_COLLAPSE"].v) > theta:
-            b_key = np.argmax(vocab.dot[temp1])
-            key = vocab.keys[b_key]
-            ports.pop(key)
-            temp1 = np.zeros(dim)
-            temp2 = np.zeros(dim)
-        elif command.dot(vocab["P_TAG"].v) > theta:
-            b_key = np.argmax(vocab.dot[temp1])
-            key = vocab.keys[b_key]
-            temp1, temp2 = ports[key]
-            temp2 = np.zeros(dim)
-        elif command.dot(vocab["P_VALUE"].v) > theta:
-            b_key = np.argmax(vocab.dot[temp1])
-            key = vocab.keys[b_key]
-            temp1, temp2 = ports[key]
-            temp1 = np.zeros(dim)
-        elif command.dot(vocab["P_RULE"].v) > theta:
-            b_key1 = np.argmax(vocab.dot[temp1])
-            key1 = vocab.keys[b_key1]
-            b_key2 = np.argmax(vocab.dot[temp2])
-            key2 = vocab.keys[b_key2]
-            temp1, temp2 = ports[key1]
-            temp2, temp3 = ports[key2]
-        elif command.dot(vocab["P_ISNODE"].v) > theta:
-            pass
-        elif command.dot(vocab["P_ISVAR"].v) > theta:
-            pass
-        elif command.dot(vocab["P_PRIORITY"].v) > theta:
-            pass
-        return np.concatenate((temp1, temp2))
-    return process_port
-
+# def ports_handler(ports, dim, vocab, theta, keys, nloc, vloc):
+#     #The function below manages the signals to manipulate the ports using spa pointers for keys, tags and values
+#     # -> need to split keys into nodes and vars -> handle that -> pass back to 2 distinct key dictionaries -> rejig all conditonals to work with it
+#     ports = ports
+#     keys = keys
+#     nloc = nloc
+#     vloc = vloc
+#     theta = theta
+#
+#     def is_var_or_node(tag):
+#         val = False
+#         node = False
+#         nodes_list = [vocab["T_CON"].v, vocab["T_DUP"].v, vocab["T_OPR"].v, vocab["T_SWI"].v]
+#         if tag.dot(vocab.["T_VAR"].v) > theta:
+#             val = True
+#         elif:
+#             for i in nodes_list:
+#                 if tag.dot(i) > theta:
+#                     node = True
+#         return val, node
+#
+#
+#     def process_port(t, x):
+#         command = x[:dim]
+#         temp1 = x[dim:dim*2]
+#         temp2 = x[dim*2:dim*3]
+#
+#         if command.dot(vocab["P_LENGTH"].v) > theta:
+#             pass
+#         elif command.dot(vocab["P_ADD"].v) > theta:
+#             print("cunt")
+#             empty = hp.check_key_empty(keys, ports)
+#             val_true, node_true = is_var_or_node(temp1)
+#             if empty == 0:
+#                 str_key = str(len(ports))
+#                 vocab.populate(f"k_{str_key}")
+#                 keys.append(vocab[f"k_{str_key}"].v)
+#                 ports[vocab[f"k_{str_key}"].v] = temp1, temp2
+#             elif empty != 0:
+#                 ports[empty] = temp1, temp2
+#             temp1 = np.zeros(dim)
+#             temp2 = np.zeros(dim)
+#         elif command.dot(vocab["P_COLLAPSE"].v) > theta:
+#             b_key = np.argmax(vocab.dot[temp1])
+#             key = vocab.keys[b_key]
+#             ports.pop(key)
+#             temp1 = np.zeros(dim)
+#             temp2 = np.zeros(dim)
+#         elif command.dot(vocab["P_TAG"].v) > theta:
+#             b_key = np.argmax(vocab.dot[temp1])
+#             key = vocab.keys[b_key]
+#             temp1, temp2 = ports[key]
+#             temp2 = np.zeros(dim)
+#         elif command.dot(vocab["P_VALUE"].v) > theta:
+#             b_key = np.argmax(vocab.dot[temp1])
+#             key = vocab.keys[b_key]
+#             temp1, temp2 = ports[key]
+#             temp1 = np.zeros(dim)
+#         elif command.dot(vocab["P_RULE"].v) > theta:
+#             b_key1 = np.argmax(vocab.dot[temp1])
+#             key1 = vocab.keys[b_key1]
+#             b_key2 = np.argmax(vocab.dot[temp2])
+#             key2 = vocab.keys[b_key2]
+#             temp1, temp2 = ports[key1]
+#             temp2, temp3 = ports[key2]
+#         elif command.dot(vocab["P_ISNODE"].v) > theta:
+#             pass
+#         elif command.dot(vocab["P_ISVAR"].v) > theta:
+#             pass
+#         elif command.dot(vocab["P_PRIORITY"].v) > theta:
+#             pass
+#         return np.concatenate((temp1, temp2))
+#     return process_port
+#
 class Ports(spa.Network):
     #takes the value of the port and the tag of type as arguments
     def __init__(self, vocab, theta, keys, nloc, vloc, label = "ports"):
@@ -100,20 +100,20 @@ class Ports(spa.Network):
         self.nloc = nloc
         self.vloc = vloc
                  
-        self.inputz = nengo.Node(output = ports_handler(self.ports, self.dim, self.voc, self.theta, self.keys, self.nloc, self.vloc), size_in = 3*self.dim, size_out=2*self.dim, label = 'input')
-        self.outputz = spa.State(vocab=2*self.dim, label = 'output')
-        nengo.Connection(self.inputz, self.outputz.input)
+        # self.inputz = nengo.Node(output = ports_handler(self.ports, self.dim, self.voc, self.theta, self.keys, self.nloc, self.vloc), size_in = 3*self.dim, size_out=2*self.dim, label = 'input')
+        # self.outputz = spa.State(vocab=2*self.dim, label = 'output')
+        # nengo.Connection(self.inputz, self.outputz.input)
         # self.tag2_out = spa.State(vocab=vocab, label = 'tag 2')
         # super().__init__() #this is if we want to alter initialization at the level of spa.Network defaults
     #######################################
 
-def pairs_handler(keys):
-    def process_pairs():
-        if command.dot()
-    return
+# def pairs_handler(keys):
+#     def process_pairs():
+#         if command.dot()
+#     return
 
 class Pairs(spa.Network):
-    def __init__(self, vocab, theta, label = 'pairs'):
+    def __init__(self, vocab, theta, keys, nloc, vloc, label = 'pairs'):
         self.voc = vocab
         self.theta = theta
         self.dim = vocab.dimensions 
@@ -134,7 +134,7 @@ class Nodes(spa.Network):
         self.theta = theta
         self.port = port
         self.pair = pair
-        self.nodes = nodes
+        self.nodes_dict = nodes
         self.pairs = pairs
         self.ports = ports
         self.keys = keys
@@ -143,7 +143,7 @@ class Nodes(spa.Network):
         node_args = ["N_CREATE", "N_STORE", "N_LOAD", "N_EXCHANGE", "N_TAKE", "N_FREE", "N_NULL"]
         hp.add_voc(node_args, self.vocab)
 
-        gnet_statevars = [("command", spa.SemanticPointer),
+        node_statevars = [("command", spa.SemanticPointer),
                           ("k_path", spa.SemanticPointer),
                           ("p_path", spa.SemanticPointer),
                           ("kcs_out", spa.SemanticPointer),
@@ -155,44 +155,106 @@ class Nodes(spa.Network):
                           ("kf_out", spa.SemanticPointer)
                           ]
         
-        table = {
-                (voc["N_CREATE"]): (voc["N_NULL"], InputVar("key", "kcs_out"), InputVar("pair", "pcs_out")),
-                (voc["N_STORE"]): (voc["N_NULL"], InputVar("key", "kcs_out"), InputVar("pair", "pcs_out"))
-                (voc["N_LOAD"]): (voc["N_NULL"], InputVar("key", "kl_out")),
-                (voc["N_EXCHANGE"]): (voc["N_NULL"], InputVar("key", "ke_out"), InputVar("pair", "pe_out")),
-                (voc["N_TAKE"]): (voc["N_NULL"], InputVar("key", "kt_out")),
-                (voc["N_FREE"]): (voc["N_NULL"], InputVar("key", "kf_out"))
+        node_table = {
+                (voc["N_CREATE"], None, None): (voc["N_NULL"], InputVar("key", "kcs_out"), InputVar("pair", "pcs_out")),
+                (voc["N_STORE"], None, None): (voc["N_NULL"], InputVar("key", "kcs_out"), InputVar("pair", "pcs_out")),
+                (voc["N_LOAD"], None, None): (voc["N_NULL"], InputVar("key", "kl_out")),
+                (voc["N_EXCHANGE"], None, None): (voc["N_NULL"], InputVar("key", "ke_out"), InputVar("pair", "pe_out")),
+                (voc["N_TAKE"], None, None): (voc["N_NULL"], InputVar("key", "kt_out")),
+                (voc["N_FREE"], None, None): (voc["N_NULL"], InputVar("key", "kf_out"))
                 }
        
         # input to the Node system expects a 3*dim input [command, location_target(key), pair(key)]
         # command to statevar command
         # rest to following inputs to get passed along
-        inputs = [
+        node_inputs = [
                 ("key", d),
                 ("pair", d),
                 ]
         
-        outputs = [("key_create", "kcs_out"),
+        node_outputs = [("key_create", "kcs_out"),
                    ("pair_create", "pcs_out"),
                    ("key_ex","ke_out"),
                    ("pair_ex","pe_out"),
                    ("key_load","kl_out"),
-                   ("",""),
-                   ("",""),
-                   ("",""),
+                   ("key_take","kt_out"),
+                   ("key_free","kf_out"),
                    ]
+        node_dfa = DFA(node_statevars, node_inputs, node_outputs, node_table, self.vocab, start=(voc["N_NULL"], None, None)) 
 
-        node_create = spa.State
-
+        # setting up inputs
+        key_in = spa.State(self.vocab)
+        pair_in = spa.State(self.vocab)
+        nengo.Connection(key_in.output, node_dfa.input_key)
+        nengo.Connection(pair_in.output, node_dfa.input_pair)
         
-class Vars(spa.Network):
-    # this network manages variables in GNet 
-    def __init__(self):
-        self.vars_dict = {}
-    with self:
-        def return_length():
-            return len(vars_dict)
+        # defining node functions
+        def node_create(nodes_dict):
+            #might need keys and nloc dictionary - unlikely tho
+            def creator(t,x):
+                key = x[:dim]
+                pair = x[dim:2*dim]
+                #nloc.append(key)
+                nodes_dict[key] = pair
+                return np.zeros(dim)
+            return creator
+        def node_load(nodes_dict):
+            def loader(t,x):
+                key = x
+                return nodes_dict[key]
+            return loader
+        # connect exchanger to pairs => perform exchange
+        def node_exchange(nodes_dict):
+            def exchanger(t, x):
+                key = x[:dim]
+                pair = x[dim:2*dim]
+                return_pair = nodes_dict[key]
+                nodes_dict[key] = pair
+                return return_pair
+            return exchanger
 
+        def node_take(nodes_dict):
+            def taker(t,x):
+                key = x
+                return_pair = nodes_dict.pop(key)
+                return return_pair
+            return taker
+        def node_free(nodes_dict):
+            def freedom(t,x):
+                key = x
+                if nodes_dict[key]:
+                    return 0
+                else:
+                    return 1
+
+
+        #setting up outputs
+        node_create = nengo.Node(output = node_create(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_create')
+        node_load = nengo.Node(output = node_load(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_load')
+        node_exchange = nengo.Node(output = node_exchange(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_exchange')
+        node_take = nengo.Node(output = node_take(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_take')
+        node_free = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
+
+        #node_outputs = [node_create, node_load, node_exchange, node_take, node_free]
+        print(node_dfa.ordered_outputs)
+        print(node_dfa.ordered_outputs[6])
+
+        nengo.Connection(node_dfa.ordered_outputs[0], node_create[:self.dim]) 
+        nengo.Connection(node_dfa.ordered_outputs[1], node_create[self.dim:2*self.dim])
+        nengo.Connection(node_dfa.ordered_outputs[3], node_exchange[:self.dim])
+        nengo.Connection(node_dfa.ordered_outputs[4], node_exchange[self.dim:2*self.dim])
+        nengo.Connection(node_dfa.ordered_outputs[2], node_load)
+        nengo.Connection(node_dfa.ordered_outputs[5], node_take)
+        nengo.Connection(node_dfa.ordered_outputs[6], node_free)
+
+
+        # output_states = [spa.state(self.vocab, label=outname) for outname, _ in outputs]
+
+# class vars(spa.network):
+#     # this network manages variables in gnet 
+#     def __init__(self):
+#         self.vars_dict = {}
+    
 
 
 class GNET(spa.Network):
@@ -207,11 +269,11 @@ class GNET(spa.Network):
         self.keys = []
         self.ports = {}
         self.pairs = {}
-        self.nodes = {}
-        self.rbags = {}
-        self.vars = {}
-
-        gnet_args = ["G_NODE", "G_VAR", "G_NULL"]
+        self.node_dict = {}
+        # self.rbag_dict = {}
+        self.vars_dict = {}
+        #need to add function to handle g_enter
+        gnet_args = ["G_NODE", "G_VAR", "G_NULL", "G_ENTER"]
         hp.add_voc(gnet_args, self.vocab)
 
         gnet_statevars = [("n_or_v", spa.SemanticPointer),
@@ -227,8 +289,8 @@ class GNET(spa.Network):
                           ]
         
         table = {
-                (voc["G_NODE"]): (voc["G_NULL"], InputVar("command", "c_pn"), InputVar("key", "k_pn"), InputVar("p_val","p_pn")),
-                (voc["G_NODE"]): (voc["G_NULL"], InputVar("command", "c_pn"), InputVar("key", "k_pn"), InputVar("p_val","p_pn"))
+                (voc["G_NODE"]): (voc["G_NULL"], InputVar("command", "c_outn"), InputVar("key", "k_outn"), InputVar("p_val","p_outn")),
+                (voc["G_VAR"]): (voc["G_NULL"], InputVar("command", "c_outv"), InputVar("key", "k_outv"), InputVar("p_val","p_outv"))
                 }
        
         # input to the Gnet expects a 4*dim input [node/var, command, location_target(key), pair/port(key)]
@@ -251,9 +313,9 @@ class GNET(spa.Network):
 
         self.pair = Pairs(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
         self.port = Ports(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
-        self.node = Nodes(self.vocab, self.theta, self.pair, self.port, self.nodes, self.ports, self.pairs, self.keys, self.nloc)
-        self.var = Vars()
-        self.rbag = Redexes(self.vocab, self.theta, self.pair, self.port, self.rbags, self.nodes, self.ports, self.pairs, self.keys, self.nloc)
+        self.node_manager = Nodes(self.vocab, self.theta, self.pair, self.port, self.node_dict, self.ports, self.pairs, self.keys, self.nloc)
+        # self.var = Vars()
+        # self.rbag = Redexes(self.vocab, self.theta, self.pair, self.port, self.rbags, self.nodes, self.ports, self.pairs, self.keys, self.nloc)
 
 
 
@@ -265,8 +327,8 @@ hp.add_voc(tags, voc)
 port_commands = ["P_ADD", "P_LENGTH", "P_NEW", "P_COLLAPSE", "P_TAG", "P_VALUE", "P_RULE", "P_ISNODE", "P_ISVAR", "P_PRIORITY"]
 hp.add_voc(port_commands, voc)
 
-node_commands = ["N_FREE", "N_CREATE", "N_LOAD", "N_STORE", "N_EXCHANGE", "N_TAKE"]
-hp.add_voc(node_commands, voc)
+# node_commands = ["N_FREE", "N_CREATE", "N_LOAD", "N_STORE", "N_EXCHANGE", "N_TAKE"]
+# hp.add_voc(node_commands, voc)
 # Adding the main interaction operators
 interaction_rules = ["I_CALL","I_LINK","I_VOID","I_ERAS","I_COMM","I_ANNI","I_OPER","I_SWIT"]
 hp.add_voc(interaction_rules, voc)
@@ -275,6 +337,8 @@ hp.add_voc(interaction_rules, voc)
 
 # Adding to the vocab the main tree node types
 # voc.populate("F_ERA;F_REF;F_NUM;F_LCON;F_RCON;F_LDUP;F_RDUP;F_OPE;F_SWI;F_VAR")
+with spa.Network() as model:
+    gnet = GNET(voc, theta)
 
 
 
