@@ -90,21 +90,156 @@ voc = spa.Vocabulary(d)
 #
 class Ports(spa.Network):
     #takes the value of the port and the tag of type as arguments
-    def __init__(self, vocab, theta, keys, nloc, vloc, label = "ports"):
+    def __init__(self, vocab, theta, keys, label = "ports"):
+        super().__init__(label = label)
         self.voc = vocab
         self.dim = vocab.dimensions
         self.theta = theta
 
         # dictionary that stores the ports 
         self.keys = keys
-        self.nloc = nloc
-        self.vloc = vloc
+        self.ports = {}
+        
+        port_args = ["P_NEW", "P_GTAG", "P_GVAL", "P_ISNODE", "P_ISVAR", "P_GRULE", "P_SWAP", "P_HIGH", "P_ADJUST", "P_NULL"]
+        hp.add_voc(port_args, self.vocab)
+
+        port_statevars = [("command", spa.SemanticPointer),
+                          ("tk_path", spa.SemanticPointer),
+                          ("vk_path", spa.SemanticPointer),
+                          ("r_path", spa.SemanticPointer),
+                          ("t_out", spa.SemanticPointer),
+                          ("v_out",spa.SemanticPointer),
+                          ("kgt_out", spa.SemanticPointer),
+                          ("kgv_out", spa.SemanticPointer),
+                          ("knode_out", spa.SemanticPointer),
+                          ("kvar_out", spa.SemanticPointer),
+                          ("k1r_out", spa.SemanticPointer),
+                          ("k2r_out", spa.SemanticPointer),
+                          ("k1s_out", spa.SemanticPointer),
+                          ("k2s_out", spa.SemanticPointer),
+                          ("r_out", spa.SemanticPointer),
+                          ("ka_out", spa.SemanticPointer)
+                          ]
+        
+        port_table = {
+                (voc["P_NEW"], None, None): (voc["P_NULL"], InputVar("trk", "t_out"), InputVar("vk", "v_out")),
+                (voc["P_GTAG"], None, None): (voc["P_NULL"], InputVar("trk", "kgt_out")),
+                (voc["P_GVAL"], None, None): (voc["P_NULL"], InputVar("trk", "kgv_out")),
+                (voc["P_ISNODE"], None, None): (voc["P_NULL"], InputVar("trk", "knode_out")),
+                (voc["P_ISVAR"], None, None): (voc["P_NULL"], InputVar("trk", "kvar_out")),
+                (voc["P_GRULE"], None, None): (voc["P_NULL"], InputVar("trk", "k1r_out"), InputVar("vk", "k2r_out")),
+                (voc["P_SWAP"], None, None): (voc["P_NULL"], InputVar("trk", "k2s_out"), InputVar("vk", "k2s_out")),
+                (voc["P_HIGH"], None, None): (voc["P_NULL"], InputVar("trk", "r_out")),
+                (voc["P_ADJUST"], None, None): (voc["P_NULL"], InputVar("trk", "ka_out"))
+                }
+       
+        # input to the Node system expects a 3*dim input [command, location_target(key), pair(key)]
+        # command to statevar command
+        # rest to following inputs to get passed along
+        port_inputs = [
+                ("trk", self.dim),
+                ("vk", self.dim),
+                ]
+        
+        port_outputs = [("new_tag", "t_out"),
+                        ("new_val", "v_out"),
+                        ("tag_key","kgt_out"),
+                        ("val_key","kgv_out"),
+                        ("is_node_key","knode_out"),
+                        ("is_var_key","kvar_out"),
+                        ("get_rule1","k1r_out"),
+                        ("get_rule2","k2r_out"),
+                        ("swap_key1","k1s_out"),
+                        ("swap_key2","k2s_out"),
+                        ("is_high","r_out"),
+                        ("adjust_key","ka_out")
+                        ]
+        rule_statevars = [("key1", spa.SemanticPointer),
+                          ("key2", spa.SemanticPointer),   
+                          ("path", spa.SemanticPointer),
+                          ("rule", spa.SemanticPointer)
+                          ]
+        rules_table = {
+                (voc["T_VAR"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_REF"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_ERA"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_NUM"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_CON"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_DUP"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_OPR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_VAR"], voc["T_SWI"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_REF"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_ERA"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_NUM"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_CON"], None): (voc["I_CALL"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_DUP"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_OPR"], None): (voc["I_CALL"], None, StateVar("tag1","rule")),
+                (voc["T_REF"], voc["T_SWI"], None): (voc["I_CALL"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_REF"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_ERA"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_NUM"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_CON"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_DUP"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_OPR"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_ERA"], voc["T_SWI"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_REF"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_ERA"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_NUM"], None): (voc["I_VOID"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_CON"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_DUP"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_OPR"], None): (voc["I_OPER"], None, StateVar("tag1","rule")),
+                (voc["T_NUM"], voc["T_SWI"], None): (voc["I_SWIT"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_REF"], None): (voc["I_CALL"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_ERA"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_NUM"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_CON"], None): (voc["I_ANNI"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_DUP"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_OPR"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_CON"], voc["T_SWI"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_REF"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_ERA"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_NUM"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_CON"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_DUP"], None): (voc["I_ANNI"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_OPR"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_DUP"], voc["T_SWI"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_REF"], None): (voc["I_CALL"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_ERA"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_NUM"], None): (voc["I_OPER"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_CON"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_DUP"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_OPR"], None): (voc["I_ANNI"], None, StateVar("tag1","rule")),
+                (voc["T_OPR"], voc["T_SWI"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_VAR"], None): (voc["I_LINK"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_REF"], None): (voc["I_CALL"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_ERA"], None): (voc["I_ERAS"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_NUM"], None): (voc["I_SWIT"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_CON"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_DUP"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_OPR"], None): (voc["I_COMM"], None, StateVar("tag1","rule")),
+                (voc["T_SWI"], voc["T_SWI"], None): (voc["I_ANNI"], None, StateVar("tag1","rule"))
+                }
+
+        rules_inputs = [
+                ("dummyin", self.dim),
+                ]
+        rules_outputs = [
+                ("rule_out","rule")
+                ]
+
+
                  
         # self.inputz = nengo.Node(output = ports_handler(self.ports, self.dim, self.voc, self.theta, self.keys, self.nloc, self.vloc), size_in = 3*self.dim, size_out=2*self.dim, label = 'input')
         # self.outputz = spa.State(vocab=2*self.dim, label = 'output')
         # nengo.Connection(self.inputz, self.outputz.input)
         # self.tag2_out = spa.State(vocab=vocab, label = 'tag 2')
-        # super().__init__() #this is if we want to alter initialization at the level of spa.Network defaults
+        #  #this is if we want to alter initialization at the level of spa.Network defaults
     #######################################
 
 # def pairs_handler(keys):
@@ -128,16 +263,12 @@ class Redexes(spa.Network):
 
 class Nodes(spa.Network):
     # this network manages the pairs and ports in GNet 
-    def __init__(self, vocab, theta, pair, port, nodes, pairs, ports, keys, nloc, label = 'nodes'):
+    def __init__(self, vocab, theta, nodes, keys, nloc, label = 'nodes'):
         super().__init__(label=label)
         self.vocab = vocab
         self.dim = vocab.dimensions
         self.theta = theta
-        self.port = port
-        self.pair = pair
         self.nodes_dict = nodes
-        self.pairs = pairs
-        self.ports = ports
         self.keys = keys
         self.nloc = nloc
 
@@ -224,10 +355,10 @@ class Nodes(spa.Network):
             self.node_dfa = DFA(node_statevars, node_inputs, node_outputs, node_table, self.vocab, start=(voc["N_NULL"], None, None)) 
 
             # setting up inputs
-            key_in = spa.State(self.vocab)
-            pair_in = spa.State(self.vocab)
-            nengo.Connection(key_in.output, self.node_dfa.input_key)
-            nengo.Connection(pair_in.output, self.node_dfa.input_pair)
+            self.key_in = spa.State(self.vocab, label = 'key in')
+            self.pair_in = spa.State(self.vocab, label = 'pair in')
+            nengo.Connection(self.key_in.output, self.node_dfa.input_key)
+            nengo.Connection(self.pair_in.output, self.node_dfa.input_pair)
 
             
             
@@ -265,7 +396,7 @@ class Nodes(spa.Network):
 
 class GNET(spa.Network):
     # this handles the representation of the entire graph network 
-    def __init__(self, vocab, theta, label = 'net'):
+    def __init__(self, vocab, theta, ports, pairs, keys, label = 'net'):
         super().__init__(label=label)
         self.vocab = vocab
         self.dim = vocab.dimensions
@@ -273,9 +404,9 @@ class GNET(spa.Network):
 
         self.nloc = []
         self.vloc = []
-        self.keys = []
-        self.ports = {}
-        self.pairs = {}
+        self.keys = keys
+        self.ports = ports
+        self.pairs = pairs
         self.node_dict = {}
         # self.rbag_dict = {}
         self.vars_dict = {}
@@ -320,22 +451,24 @@ class GNET(spa.Network):
             self.gnet_dfa = DFA(gnet_statevars, gnet_inputs, gnet_outputs, gnet_table, self.vocab, start=(voc["G_NULL"], None, None)) 
 
             # setting up inputs
-            command_in = spa.State(self.vocab)
-            key_in = spa.State(self.vocab)
-            pair_in = spa.State(self.vocab)
-            nengo.Connection(command_in.output, self.gnet_dfa.input_command)
-            nengo.Connection(key_in.output, self.gnet_dfa.input_key)
-            nengo.Connection(pair_in.output, self.gnet_dfa.input_p_val)
+            self.command_in = spa.State(self.vocab, label = 'command in')
+            self.key_in = spa.State(self.vocab, label = 'key in')
+            self.pair_in = spa.State(self.vocab, label = 'pair/port in')
+            nengo.Connection(self.command_in.output, self.gnet_dfa.input_command)
+            nengo.Connection(self.key_in.output, self.gnet_dfa.input_key)
+            nengo.Connection(self.pair_in.output, self.gnet_dfa.input_p_val)
 
-            print (self.gnet_dfa.statevars.ordered_svs)
+            # print (self.gnet_dfa.ordered_outputs)
 
 
-            self.pair = Pairs(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
-            self.port = Ports(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
-            self.node_manager = Nodes(self.vocab, self.theta, self.pair, self.port, self.node_dict, self.ports, self.pairs, self.keys, self.nloc)
+            self.node_manager = Nodes(self.vocab, self.theta, self.node_dict, self.keys, self.nloc)
+            # print (self.node_manager.node_dfa.statevars.ordered_svs)
 
-            nengo.Connection(gnet_dfa.statevars.ordered_svs[4], node_manager.)
-            print (self.node_manager.node_dfa.statevars.ordered_svs)
+            nengo.Connection(self.gnet_dfa.ordered_outputs[0], self.node_manager.node_dfa.statevars.ordered_svs[0].input)
+            nengo.Connection(self.gnet_dfa.ordered_outputs[1], self.node_manager.key_in.input)
+            nengo.Connection(self.gnet_dfa.ordered_outputs[1], self.node_manager.pair_in.input)
+
+            # need to make the stuff for enter function
 
 
 
@@ -349,12 +482,7 @@ class GNET(spa.Network):
 tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI", "TEST", "TRUE", "FALSE"]
 hp.add_voc(tags, voc)
 
-port_commands = ["P_ADD", "P_LENGTH", "P_NEW", "P_COLLAPSE", "P_TAG", "P_VALUE", "P_RULE", "P_ISNODE", "P_ISVAR", "P_PRIORITY"]
-hp.add_voc(port_commands, voc)
 
-# node_commands = ["N_FREE", "N_CREATE", "N_LOAD", "N_STORE", "N_EXCHANGE", "N_TAKE"]
-# hp.add_voc(node_commands, voc)
-# Adding the main interaction operators
 interaction_rules = ["I_CALL","I_LINK","I_VOID","I_ERAS","I_COMM","I_ANNI","I_OPER","I_SWIT"]
 hp.add_voc(interaction_rules, voc)
 # Adding the numerical oprators 
@@ -363,7 +491,12 @@ hp.add_voc(interaction_rules, voc)
 # Adding to the vocab the main tree node types
 # voc.populate("F_ERA;F_REF;F_NUM;F_LCON;F_RCON;F_LDUP;F_RDUP;F_OPE;F_SWI;F_VAR")
 with spa.Network() as model:
-    gnet = GNET(voc, theta)
+    ports = {}
+    pairs = {}
+    keys = []
+    gnet = GNET(voc, theta, ports, pairs, keys)
+
+    # print(gnet.nloc)
 
 
 
