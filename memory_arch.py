@@ -129,6 +129,7 @@ class Redexes(spa.Network):
 class Nodes(spa.Network):
     # this network manages the pairs and ports in GNet 
     def __init__(self, vocab, theta, pair, port, nodes, pairs, ports, keys, nloc, label = 'nodes'):
+        super().__init__(label=label)
         self.vocab = vocab
         self.dim = vocab.dimensions
         self.theta = theta
@@ -168,8 +169,8 @@ class Nodes(spa.Network):
         # command to statevar command
         # rest to following inputs to get passed along
         node_inputs = [
-                ("key", d),
-                ("pair", d),
+                ("key", self.dim),
+                ("pair", self.dim),
                 ]
         
         node_outputs = [("key_create", "kcs_out"),
@@ -180,14 +181,6 @@ class Nodes(spa.Network):
                    ("key_take","kt_out"),
                    ("key_free","kf_out"),
                    ]
-        node_dfa = DFA(node_statevars, node_inputs, node_outputs, node_table, self.vocab, start=(voc["N_NULL"], None, None)) 
-
-        # setting up inputs
-        key_in = spa.State(self.vocab)
-        pair_in = spa.State(self.vocab)
-        nengo.Connection(key_in.output, node_dfa.input_key)
-        nengo.Connection(pair_in.output, node_dfa.input_pair)
-        
         # defining node functions
         def node_create(nodes_dict):
             #might need keys and nloc dictionary - unlikely tho
@@ -227,25 +220,38 @@ class Nodes(spa.Network):
                 else:
                     return 1
 
+        with self:
+            self.node_dfa = DFA(node_statevars, node_inputs, node_outputs, node_table, self.vocab, start=(voc["N_NULL"], None, None)) 
 
-        #setting up outputs
-        node_create = nengo.Node(output = node_create(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_create')
-        node_load = nengo.Node(output = node_load(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_load')
-        node_exchange = nengo.Node(output = node_exchange(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_exchange')
-        node_take = nengo.Node(output = node_take(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_take')
-        node_free = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
+            # setting up inputs
+            key_in = spa.State(self.vocab)
+            pair_in = spa.State(self.vocab)
+            nengo.Connection(key_in.output, self.node_dfa.input_key)
+            nengo.Connection(pair_in.output, self.node_dfa.input_pair)
 
-        #node_outputs = [node_create, node_load, node_exchange, node_take, node_free]
-        print(node_dfa.ordered_outputs)
-        print(node_dfa.ordered_outputs[6])
+            
+            
 
-        nengo.Connection(node_dfa.ordered_outputs[0], node_create[:self.dim]) 
-        nengo.Connection(node_dfa.ordered_outputs[1], node_create[self.dim:2*self.dim])
-        nengo.Connection(node_dfa.ordered_outputs[3], node_exchange[:self.dim])
-        nengo.Connection(node_dfa.ordered_outputs[4], node_exchange[self.dim:2*self.dim])
-        nengo.Connection(node_dfa.ordered_outputs[2], node_load)
-        nengo.Connection(node_dfa.ordered_outputs[5], node_take)
-        nengo.Connection(node_dfa.ordered_outputs[6], node_free)
+            #setting up outputs
+            node_create = nengo.Node(output = node_create(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_create')
+            node_load = nengo.Node(output = node_load(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_load')
+            node_exchange = nengo.Node(output = node_exchange(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_exchange')
+            node_take = nengo.Node(output = node_take(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_take')
+            node_free = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
+
+            #node_outputs = [node_create, node_load, node_exchange, node_take, node_free]
+            # print(node_dfa.ordered_outputs)
+            # print(node_dfa.ordered_outputs[6])
+
+            nengo.Connection(self.node_dfa.ordered_outputs[0], node_create[:self.dim]) 
+            nengo.Connection(self.node_dfa.ordered_outputs[1], node_create[self.dim:2*self.dim])
+            nengo.Connection(self.node_dfa.ordered_outputs[3], node_exchange[:self.dim])
+            nengo.Connection(self.node_dfa.ordered_outputs[4], node_exchange[self.dim:2*self.dim])
+            nengo.Connection(self.node_dfa.ordered_outputs[2], node_load)
+            nengo.Connection(self.node_dfa.ordered_outputs[5], node_take)
+            nengo.Connection(self.node_dfa.ordered_outputs[6], node_free)
+
+  
 
 
         # output_states = [spa.state(self.vocab, label=outname) for outname, _ in outputs]
@@ -260,6 +266,7 @@ class Nodes(spa.Network):
 class GNET(spa.Network):
     # this handles the representation of the entire graph network 
     def __init__(self, vocab, theta, label = 'net'):
+        super().__init__(label=label)
         self.vocab = vocab
         self.dim = vocab.dimensions
         self.theta = theta
@@ -288,32 +295,50 @@ class GNET(spa.Network):
                           ("p_outv", spa.SemanticPointer),
                           ]
         
-        table = {
-                (voc["G_NODE"]): (voc["G_NULL"], InputVar("command", "c_outn"), InputVar("key", "k_outn"), InputVar("p_val","p_outn")),
-                (voc["G_VAR"]): (voc["G_NULL"], InputVar("command", "c_outv"), InputVar("key", "k_outv"), InputVar("p_val","p_outv"))
+        gnet_table = {
+                (voc["G_NODE"], None, None): (voc["G_NULL"], InputVar("command", "c_outn"), InputVar("key", "k_outn"), InputVar("p_val","p_outn")),
+                (voc["G_VAR"], None, None): (voc["G_NULL"], InputVar("command", "c_outv"), InputVar("key", "k_outv"), InputVar("p_val","p_outv"))
                 }
        
         # input to the Gnet expects a 4*dim input [node/var, command, location_target(key), pair/port(key)]
         # node/var, to statevariable n_or_v
         # rest to following inputs to get passed along
-        inputs = [
-                ("command",d),
-                ("key", d),
-                ("p_val", d),
+        gnet_inputs = [
+                ("command",self.dim),
+                ("key", self.dim),
+                ("p_val", self.dim),
                 ]
         
-        outputs = [("c_node", "c_outn"),
+        gnet_outputs = [("c_node", "c_outn"),
                    ("k_node", "k_outn"),
                    ("p_node", "p_outn"),
                    ("c_var", "c_outv"),
                    ("k_var", "k_outv"),
                    ("p_var", "p_outv"),
                    ]
+        with self:
+            self.gnet_dfa = DFA(gnet_statevars, gnet_inputs, gnet_outputs, gnet_table, self.vocab, start=(voc["G_NULL"], None, None)) 
+
+            # setting up inputs
+            command_in = spa.State(self.vocab)
+            key_in = spa.State(self.vocab)
+            pair_in = spa.State(self.vocab)
+            nengo.Connection(command_in.output, self.gnet_dfa.input_command)
+            nengo.Connection(key_in.output, self.gnet_dfa.input_key)
+            nengo.Connection(pair_in.output, self.gnet_dfa.input_p_val)
+
+            print (self.gnet_dfa.statevars.ordered_svs)
 
 
-        self.pair = Pairs(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
-        self.port = Ports(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
-        self.node_manager = Nodes(self.vocab, self.theta, self.pair, self.port, self.node_dict, self.ports, self.pairs, self.keys, self.nloc)
+            self.pair = Pairs(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
+            self.port = Ports(self.vocab, self.theta, self.keys, self.nloc, self.vloc)
+            self.node_manager = Nodes(self.vocab, self.theta, self.pair, self.port, self.node_dict, self.ports, self.pairs, self.keys, self.nloc)
+
+            nengo.Connection(gnet_dfa.statevars.ordered_svs[4], node_manager.)
+            print (self.node_manager.node_dfa.statevars.ordered_svs)
+
+
+
         # self.var = Vars()
         # self.rbag = Redexes(self.vocab, self.theta, self.pair, self.port, self.rbags, self.nodes, self.ports, self.pairs, self.keys, self.nloc)
 
