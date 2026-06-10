@@ -9,7 +9,7 @@ from collections import UserDict
 d = 128
 theta = 0.3
 voc = spa.Vocabulary(d)
-
+voc.add("NULL", np.zeros(d))
 
 ###################################
 #     The Memory Architecture
@@ -90,7 +90,7 @@ voc = spa.Vocabulary(d)
 #
 class Ports(spa.Network):
     #takes the value of the port and the tag of type as arguments
-    def __init__(self, vocab, theta, keys, label = "ports"):
+    def __init__(self, vocab, theta, keys, ports, label = "ports"):
         super().__init__(label = label)
         self.voc = vocab
         self.dim = vocab.dimensions
@@ -98,7 +98,7 @@ class Ports(spa.Network):
 
         # dictionary that stores the ports 
         self.keys = keys
-        self.ports = {}
+        self.ports = ports
         
         port_args = ["P_NEW", "P_GTAG", "P_GVAL", "P_ISNODE", "P_ISVAR", "P_GRULE", "P_SWAP", "P_HIGH", "P_ADJUST", "P_NULL"]
         hp.add_voc(port_args, self.vocab)
@@ -154,6 +154,14 @@ class Ports(spa.Network):
                         ("is_high","r_out"),
                         ("adjust_key","ka_out")
                         ]
+
+        interaction_rules = ["I_CALL","I_LINK","I_VOID","I_ERAS","I_COMM","I_ANNI","I_OPER","I_SWIT"]
+        hp.add_voc(interaction_rules, self.vocab)
+
+        tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI", "TEST", "TRUE", "FALSE"]
+        hp.add_voc(tags, self.vocab)
+
+
         rule_statevars = [("key1", spa.SemanticPointer),
                           ("key2", spa.SemanticPointer),   
                           ("path", spa.SemanticPointer),
@@ -232,20 +240,44 @@ class Ports(spa.Network):
         rules_outputs = [
                 ("rule_out","rule")
                 ]
+        def new_port(keys, ports):
+            def new(t,x):
+                tag = x[:self.dim]
+                value = x[self.dim:2*self.dim]
+                empty = hp.check_key_empty(keys, ports)
+                if empty == 0:
+                    str_key = str(len(ports))
+                    vocab.populate(f"k_{str_key}")
+                    keys.append(f"k_{str_key}")
+                    ports[f"k_{str_key}"] = tag, value
+                    return vocab[f"k_{str_key}"].v
+                elif empty != 0:
+                    name = hp.from_vocab(empty, self.vocab)
+                    ports[name] = tag, value
+                    return empty
+            return new
+        def port_tag(keys, ports):
+            def get_tag(t,x):
+                key = x
+                key_name = hp.from_vocab(key, self.vocab)
+                if key_name in keys and key_name in list(ports.keys()):
+                    tag, val = ports[key_name]
+                    return tag
+                else:
+                    return np.zeros(self.dim)
+            return get_tag
 
+        def port_val(keys, ports):
+            def get_val(t,x):
+                key = x
+                key_name = hp.from_vocab(key, self.vocab)
+                if key_name in keys and key_name in list(ports.keys()):
+                    tag, val = ports[key_name]
+                    return val
+                else:
+                    return np.zeros(self.dim)
+            return get_val
 
-                 
-        # self.inputz = nengo.Node(output = ports_handler(self.ports, self.dim, self.voc, self.theta, self.keys, self.nloc, self.vloc), size_in = 3*self.dim, size_out=2*self.dim, label = 'input')
-        # self.outputz = spa.State(vocab=2*self.dim, label = 'output')
-        # nengo.Connection(self.inputz, self.outputz.input)
-        # self.tag2_out = spa.State(vocab=vocab, label = 'tag 2')
-        #  #this is if we want to alter initialization at the level of spa.Network defaults
-    #######################################
-
-# def pairs_handler(keys):
-#     def process_pairs():
-#         if command.dot()
-#     return
 
 class Pairs(spa.Network):
     def __init__(self, vocab, theta, keys, nloc, vloc, label = 'pairs'):
@@ -313,40 +345,60 @@ class Nodes(spa.Network):
                    ("key_free","kf_out"),
                    ]
         # defining node functions
-        def node_create(nodes_dict):
+                #print(vocab.vectors)
+
+        def node_create(nodes_dict, keys):
             #might need keys and nloc dictionary - unlikely tho
             def creator(t,x):
-                key = x[:dim]
-                pair = x[dim:2*dim]
+                key = x[:self.dim]
+                pair = x[self.dim:2*self.dim]
                 #nloc.append(key)
-                nodes_dict[key] = pair
-                return np.zeros(dim)
+                key_name = hp.from_vocab(key, self.vocab)
+                if key_name in keys:
+                    nodes_dict[key_name] = pair
+                return np.zeros(self.dim)
             return creator
-        def node_load(nodes_dict):
+        def node_load(nodes_dict, keys, nloc):
             def loader(t,x):
                 key = x
-                return nodes_dict[key]
+                if len(nodes_dict) == 0:
+                    return np.zeros(self.dim)
+                else:
+                    key_name = hp.from_vocab(key, self.vocab)
+                    if key_name in keys and key_name in nloc:
+                        return nodes_dict[key_name]
+                    else:
+                        return np.zeros(self.dim)
             return loader
         # connect exchanger to pairs => perform exchange
-        def node_exchange(nodes_dict):
+        def node_exchange(nodes_dict, keys, nloc):
             def exchanger(t, x):
-                key = x[:dim]
-                pair = x[dim:2*dim]
-                return_pair = nodes_dict[key]
-                nodes_dict[key] = pair
+                key = x[:self.dim]
+                pair = x[self.dim:2*self.dim]
+                key_name = hp.from_vocab(key, self.vocab)
+                if key_name in keys and key_name in nloc:
+                    return_pair = nodes_dict[key_name]
+                    nodes_dict[key_name] = pair                
+                else:
+                    return_pair = np.zeros(self.dim)
                 return return_pair
             return exchanger
 
-        def node_take(nodes_dict):
+        def node_take(nodes_dict, keys, nloc):
             def taker(t,x):
                 key = x
-                return_pair = nodes_dict.pop(key)
+                key_name = hp.from_vocab(key, self.vocab)
+                if key_name in keys and key_name in nloc:
+                    return_pair = nodes_dict.pop(key_name)
+                else:
+                    return_pair = np.zeros(self.dim)
                 return return_pair
             return taker
         def node_free(nodes_dict):
             def freedom(t,x):
                 key = x
-                if nodes_dict[key]:
+                key_name = hp.from_vocab(key, self.vocab)
+                if nodes_dict[key_name]:
                     return 0
                 else:
                     return 1
@@ -364,10 +416,10 @@ class Nodes(spa.Network):
             
 
             #setting up outputs
-            node_create = nengo.Node(output = node_create(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_create')
-            node_load = nengo.Node(output = node_load(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_load')
-            node_exchange = nengo.Node(output = node_exchange(self.nodes_dict), size_in = 2*self.dim, size_out = self.dim, label = 'node_exchange')
-            node_take = nengo.Node(output = node_take(self.nodes_dict), size_in = self.dim, size_out = self.dim, label = 'node_take')
+            node_create = nengo.Node(output = node_create(self.nodes_dict, self.keys), size_in = 2*self.dim, size_out = self.dim, label = 'node_create')
+            node_load = nengo.Node(output = node_load(self.nodes_dict, self.keys, self.nloc), size_in = self.dim, size_out = self.dim, label = 'node_load')
+            node_exchange = nengo.Node(output = node_exchange(self.nodes_dict, self.keys, self.nloc), size_in = 2*self.dim, size_out = self.dim, label = 'node_exchange')
+            node_take = nengo.Node(output = node_take(self.nodes_dict, self.keys, self.nloc), size_in = self.dim, size_out = self.dim, label = 'node_take')
             node_free = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
 
             #node_outputs = [node_create, node_load, node_exchange, node_take, node_free]
@@ -401,7 +453,7 @@ class GNET(spa.Network):
         self.vocab = vocab
         self.dim = vocab.dimensions
         self.theta = theta
-
+        
         self.nloc = []
         self.vloc = []
         self.keys = keys
@@ -479,12 +531,8 @@ class GNET(spa.Network):
 
 
 # Adding port tags
-tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI", "TEST", "TRUE", "FALSE"]
-hp.add_voc(tags, voc)
 
 
-interaction_rules = ["I_CALL","I_LINK","I_VOID","I_ERAS","I_COMM","I_ANNI","I_OPER","I_SWIT"]
-hp.add_voc(interaction_rules, voc)
 # Adding the numerical oprators 
 # voc.populate("")
 
