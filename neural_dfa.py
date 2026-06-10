@@ -103,7 +103,9 @@ class DFA(spa.Network):
                  table:dict[STTState, STTVar],
                  voc:spa.Vocabulary,
                  start:STTState|None=None,
-                 neurons:int=50, 
+                 ens_neurons:int=50, # neurons per ensemble wherever bare ensembles are used
+                 subdimensions:int=16, # subdimensions in a State object
+                 neurons_per_dimension:int=50, # neurons per dimension in a State object
                  synapse:float=0.01,
                  thresh:float=0.2,
                  label:str="DFA", 
@@ -112,8 +114,10 @@ class DFA(spa.Network):
                  ):
         super(spa.Network, self).__init__(label=label, *args, **kwargs)
 
-        self.neur = neurons
+        self.neur = ens_neurons
         self.dim = voc.dimensions
+        self.subdim = subdimensions
+        self.npd = neurons_per_dimension
         self.synapse = synapse
         self.voc = voc
 
@@ -202,7 +206,9 @@ class DFA(spa.Network):
 
                 for i, (name, stype) in enumerate(statevars):
                     if stype is spa.SemanticPointer:
-                        self.statevars.svs[name] = spa.State(self.voc, label=name)
+                        self.statevars.svs[name] = spa.State(self.voc, subdimensions=self.subdim, 
+                                                             neurons_per_dimension=self.npd, 
+                                                             label=name)
                     elif stype is float:
                         self.statevars.svs[name] = spa.State(1, subdimensions=1, label=name)
                     elif stype is int:
