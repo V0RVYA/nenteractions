@@ -17,9 +17,9 @@ def add_voc(lis, vocab):
         # reverse_voc[tuple(vocab[v].v)] = v
 
 def check_key_empty(keys, ports):
-    for i in keys:
-        e_key = i
-        if i in ports:
+    for i,v in enumerate(keys):
+        e_key = v
+        if v in ports:
             e_key = 0
         else:
             break
