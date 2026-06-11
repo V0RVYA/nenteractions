@@ -415,7 +415,7 @@ class Pairs(spa.Network):
             #self.pair_sflag = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
             #self.pair_gflag = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
 
-            print(list(self.pair_dfa.ordered_outputs))
+            #print(list(self.pair_dfa.ordered_outputs))
 
 
             nengo.Connection(self.pair_dfa.ordered_outputs[0], self.pair_new[:self.dim]) 
