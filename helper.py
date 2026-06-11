@@ -16,14 +16,11 @@ def add_voc(lis, vocab):
         vocab.populate(v)
         # reverse_voc[tuple(vocab[v].v)] = v
 
-def check_key_empty(keys, ports):
-    for i,v in enumerate(keys):
-        e_key = v
-        if v in ports:
-            e_key = 0
-        else:
-            break
-    return e_key
+def check_key_empty(keys, mem_dict):
+    for v in keys:
+        if v not in mem_dict:
+            return v
+    return 0
 
 
 def from_vocab(pointer, vocab):

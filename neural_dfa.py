@@ -311,6 +311,8 @@ class DFA(spa.Network):
                     else:
                         raise NotImplementedError(type(c))
 
+                print(self.statevars, self.statevars.ordered_svs, action)
+
                 # Connect actions to statevars
                 for j, (sv, a) in enumerate(zip(self.statevars.ordered_svs, action)):
                     if isinstance(a, spa.SemanticPointer): # project a symbol
