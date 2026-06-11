@@ -303,7 +303,8 @@ class Ports(spa.Network):
 
 class Pairs(spa.Network):
     def __init__(self, vocab, theta, keys, pairs, nloc, vloc, label = 'pairs'):
-        self.voc = vocab
+        super().__init__(label = label)
+        self.vocab = vocab
         self.theta = theta
         self.dim = vocab.dimensions 
         self.keys = keys
@@ -312,7 +313,7 @@ class Pairs(spa.Network):
         self.vloc = vloc
 
         pair_args = ["PA_NEW","PA_FST","PA_SND","PA_ADJUST","PA_SFLAG","PA_GFLAG", "PA_NULL"]
-        hp.from_vocab(pair_args, self.vocab)
+        hp.add_voc(pair_args, self.vocab)
 
         pair_statevars = [("command", spa.SemanticPointer),
                           ("pk1_path", spa.SemanticPointer), 
@@ -390,7 +391,7 @@ class Pairs(spa.Network):
                     return np.zeros(self.dim)
             return get_snd
 
-        def adjust_pair(keys, pairs, ports):
+        def adjust_pair(keys, pairs): #add ports??
             #need to work out this set of interactions -> likely need some state to hold pair key in memory while ports are individually adjusted
             # or have two nodes which perform adjustments??? -> harder would need to modify table
             def adjust(t,x):
@@ -400,6 +401,27 @@ class Pairs(spa.Network):
 
         with self:
             self.pair_dfa = DFA(pair_statevars, pair_inputs, pair_outputs, pair_table, self.vocab, start=(self.vocab["PA_NULL"], None, None))
+            # setting up inputs
+            self.key_1 = spa.State(self.vocab, label = 'key 1 in')
+            self.key_2 = spa.State(self.vocab, label = 'key 2 in')
+            nengo.Connection(self.key_1.output, self.pair_dfa.input_key1)
+            nengo.Connection(self.key_2.output, self.pair_dfa.input_key2)
+
+            #setting up outputs
+            self.pair_new = nengo.Node(output = new_pair(self.keys, self.pairs), size_in = 2*self.dim, size_out = self.dim, label = 'pair new')
+            self.pair_first = nengo.Node(output = pair_fst(self.keys, self.pairs), size_in = self.dim, size_out = self.dim, label = 'pair first')
+            self.pair_second = nengo.Node(output = pair_snd(self.keys, self.pairs), size_in = self.dim, size_out = self.dim, label = 'pair second')
+            #self.pair_adjust = nengo.Node(output = adjust_pair(self.nodes_dict, self.keys, self.nloc), size_in = self.dim, size_out = self.dim, label = 'node_take')
+            #self.pair_sflag = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
+            #self.pair_gflag = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
+
+            print(list(self.pair_dfa.ordered_outputs))
+
+
+            nengo.Connection(self.pair_dfa.ordered_outputs[0], self.pair_new[:self.dim]) 
+            nengo.Connection(self.pair_dfa.ordered_outputs[1], self.pair_new[self.dim:2*self.dim])
+            nengo.Connection(self.pair_dfa.ordered_outputs[2], self.pair_first)
+            nengo.Connection(self.pair_dfa.ordered_outputs[3], self.pair_second)
 
 
 class Redexes(spa.Network):
@@ -528,9 +550,6 @@ class Nodes(spa.Network):
             nengo.Connection(self.key_in.output, self.node_dfa.input_key)
             nengo.Connection(self.pair_in.output, self.node_dfa.input_pair)
 
-            
-            
-
             #setting up outputs
             self.node_create = nengo.Node(output = node_create(self.nodes_dict, self.keys), size_in = 2*self.dim, size_out = self.dim, label = 'node_create')
             self.node_load = nengo.Node(output = node_load(self.nodes_dict, self.keys, self.nloc), size_in = self.dim, size_out = self.dim, label = 'node_load')
@@ -538,7 +557,7 @@ class Nodes(spa.Network):
             self.node_take = nengo.Node(output = node_take(self.nodes_dict, self.keys, self.nloc), size_in = self.dim, size_out = self.dim, label = 'node_take')
             self.node_free = nengo.Node(output = node_free(self.nodes_dict), size_in = self.dim, size_out = 1, label = 'node_free')
 
-
+            #connecting dfa outputs to function ports performing operations on nodes_dict
             nengo.Connection(self.node_dfa.ordered_outputs[0], self.node_create[:self.dim]) 
             nengo.Connection(self.node_dfa.ordered_outputs[1], self.node_create[self.dim:2*self.dim])
             nengo.Connection(self.node_dfa.ordered_outputs[3], self.node_exchange[:self.dim])
@@ -622,6 +641,13 @@ class GNET(spa.Network):
             nengo.Connection(self.gnet_dfa.ordered_outputs[1], self.node_manager.key_in.input)
             nengo.Connection(self.gnet_dfa.ordered_outputs[1], self.node_manager.pair_in.input)
 
+class Def(spa.Network):
+    pass
+
+class Book(spa.Network):
+    pass 
+
+
 with spa.Network() as model:
     ports = {}
     pairs = {}
@@ -632,6 +658,7 @@ with spa.Network() as model:
     # need var_dict and rbagloc + rbag_dict
     gnet = GNET(voc, theta, ports, pairs, keys, nloc, vloc, nodes_dict)
     ports = Ports(voc, theta, keys, ports, nloc, vloc)
+    pairs = Pairs(voc, theta, keys, pairs, nloc, vloc)
     # print(gnet.nloc)
 
 
