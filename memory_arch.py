@@ -164,6 +164,9 @@ class Ports(spa.Network):
         rules_outputs = [
                 ("rule_out","rule")
                 ]
+        # want:
+        # A new entry in the port dictionary containing the tag + value
+        # to return the key to the tag/value in the port dictionary
         def new_port(keys, ports):
             def new(t,x):
                 tag = x[:self.dim]
@@ -180,6 +183,7 @@ class Ports(spa.Network):
                     ports[name] = tag, value
                     return empty
             return new
+        # given the key, want the tag array passed along
         def port_tag(keys, ports):
             def get_tag(t,x):
                 key = x
@@ -190,7 +194,7 @@ class Ports(spa.Network):
                 else:
                     return np.zeros(self.dim)
             return get_tag
-
+        # given the key, want the value array passed along
         def port_val(keys, ports):
             def get_val(t,x):
                 key = x
@@ -202,7 +206,7 @@ class Ports(spa.Network):
                     return np.zeros(self.dim)
             return get_val
             
-        #remove -> inside of adjust port
+        #remove -> inside of adjust port -> ignore this
         def port_is_node(keys, ports):
             def is_node(t,x):
                 key = x
@@ -215,7 +219,7 @@ class Ports(spa.Network):
                     return 0
             return is_node
         
-        #remove -> inside of adjust port
+        #remove -> inside of adjust port -> ignore this
         def port_is_var(keys, ports):
             def is_var(t,x):
                 key = x
@@ -226,7 +230,9 @@ class Ports(spa.Network):
                 else:
                     return 0
             return is_var
-        
+        # given two keys, want to compare the two tags 
+        #if the tag for key 2, has a higher index in ordered_tags than the tag for key 1 return 1, else return 0
+        # this one is definitely broken -> not actually pulling out the tags
         def port_swap(keys, ports):
             def should_swap(t,x):
                 key1 = x[:self.dim]
@@ -238,7 +244,7 @@ class Ports(spa.Network):
                 b = 0
                 if ports[key_name]:
                     for i in ordered_tags:
-                        if ordered_tags[i] == key_name1:
+                        if ordered_tags[i] == key_name1: #need to index the first value in the tuple linked to the key
                             a = i
                         elif ordered_tags[i] == key_name2:
                             b = i
@@ -247,7 +253,7 @@ class Ports(spa.Network):
                 else:
                     return 0
             return should_swap
-
+        # here given a rule, if rule is in list high_rule, return 1, else return 0
         def high_rule():
             def is_high(t,x):
                 rule = x
@@ -258,7 +264,7 @@ class Ports(spa.Network):
                 else:
                     return 0
             return is_high
-
+        #ignore this for now
         def adjust_port(keys, ports, nloc, vloc):
             def adjust(t,x):
                 # remove is_var and is_node -> logic only used here
@@ -348,7 +354,8 @@ class Pairs(spa.Network):
                 ("pair_sfl","psf_out"),
                 ("pair_gfl","pgf_out")
                 ]
-
+        # given two port keys, put a new keyed pair in dictionary of pairs
+        # return the key for pairs 
         def new_pair(keys, pairs):
             def new(t,x):
                 port_1 = x[:self.dim]
@@ -368,7 +375,7 @@ class Pairs(spa.Network):
                     ports[name] = port_1, port_2
                     return empty
             return new
-
+        #given the pair key, return the first ports key
         def pair_fst(keys, pairs):
             def get_fst(t,x):
                 key = x
@@ -379,7 +386,7 @@ class Pairs(spa.Network):
                 else:
                     return np.zeros(self.dim)
             return get_fst
-
+        # given the pair key, return the second ports key
         def pair_snd(keys, pairs):
             def get_snd(t,x):
                 key = x
@@ -390,7 +397,7 @@ class Pairs(spa.Network):
                 else:
                     return np.zeros(self.dim)
             return get_snd
-
+        # ignore for now
         def adjust_pair(keys, pairs): #add ports??
             #need to work out this set of interactions -> likely need some state to hold pair key in memory while ports are individually adjusted
             # or have two nodes which perform adjustments??? -> harder would need to modify table
@@ -483,9 +490,8 @@ class Nodes(spa.Network):
                    ("key_free","kf_out"),
                    ]
         # defining node functions
-
+        # given a key for where to put in the node_dict, and a pair key -> add pair key to key position (controller manages making the node_dict keys) 
         def node_create(nodes_dict, keys):
-            #might need keys and nloc dictionary - unlikely tho
             def creator(t,x):
                 key = x[:self.dim]
                 pair = x[self.dim:2*self.dim]
@@ -495,6 +501,7 @@ class Nodes(spa.Network):
                     nodes_dict[key_name] = pair
                 return np.zeros(self.dim)
             return creator
+        #given a key return the pair key
         def node_load(nodes_dict, keys, nloc):
             def loader(t,x):
                 key = x
@@ -508,6 +515,7 @@ class Nodes(spa.Network):
                         return np.zeros(self.dim)
             return loader
         # connect exchanger to pairs => perform exchange
+        # given a key and a pair, exchange the pair key at node_dict[key] and return the original pair key stored at node_dict[key]
         def node_exchange(nodes_dict, keys, nloc):
             def exchanger(t, x):
                 key = x[:self.dim]
@@ -520,7 +528,7 @@ class Nodes(spa.Network):
                     return_pair = np.zeros(self.dim)
                 return return_pair
             return exchanger
-
+        # given a key, return the pair key stored there, and pop the key
         def node_take(nodes_dict, keys, nloc):
             def taker(t,x):
                 key = x
@@ -531,6 +539,7 @@ class Nodes(spa.Network):
                     return_pair = np.zeros(self.dim)
                 return return_pair
             return taker
+        # check if nodes_dict[key] exists, if yes return 1, if no return 0
         def node_free(nodes_dict):
             def freedom(t,x):
                 key = x
