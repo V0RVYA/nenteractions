@@ -5,18 +5,20 @@ import helper as hp
 from neural_dfa import DFA, InputVar, StateVar
 from collections import UserDict
 
-#dimentions and default vocabulary initialized here
-d = 128
-theta = 0.3
-voc = spa.Vocabulary(d)
-voc.add("NULL", np.zeros(d))
 
 ###################################
 #     The Memory Architecture
 ###################################
 class Ports(spa.Network):
     #takes the value of the port and the tag of type as arguments
-    def __init__(self, vocab, theta, keys, ports, nloc, vloc, label = "ports"):
+    def __init__(self, 
+                 vocab:spa.Vocabulary, 
+                 theta:float, 
+                 keys:list[str], 
+                 ports:dict[str, (np.ndarray, np.ndarray)],
+                 nloc:list[spa.SemanticPointer], 
+                 vloc:list[spa.SemanticPointer], 
+                 label:str = "ports"):
         super().__init__(label = label)
         self.vocab = vocab
         self.dim = vocab.dimensions
@@ -92,70 +94,70 @@ class Ports(spa.Network):
                           ("rule", spa.SemanticPointer)
                           ]
         rules_table = {
-                (self.vocab["T_VAR"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_REF"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_ERA"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_NUM"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_CON"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_DUP"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_OPR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_VAR"], voc["T_SWI"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_REF"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_ERA"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_NUM"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_CON"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_DUP"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_OPR"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
-                (self.vocab["T_REF"], voc["T_SWI"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_REF"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_ERA"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_NUM"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_CON"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_DUP"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_OPR"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_ERA"], voc["T_SWI"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_REF"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_ERA"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_NUM"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_CON"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_DUP"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_OPR"], None): (self.vocab["I_OPER"], None, StateVar("key1","rule")),
-                (self.vocab["T_NUM"], voc["T_SWI"], None): (self.vocab["I_SWIT"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_REF"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_NUM"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_CON"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_DUP"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_OPR"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_CON"], voc["T_SWI"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_REF"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_NUM"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_CON"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_DUP"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_OPR"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_DUP"], voc["T_SWI"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_REF"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_NUM"], None): (self.vocab["I_OPER"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_CON"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_DUP"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_OPR"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule")),
-                (self.vocab["T_OPR"], voc["T_SWI"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_REF"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_NUM"], None): (self.vocab["I_SWIT"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_CON"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_DUP"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_OPR"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
-                (self.vocab["T_SWI"], voc["T_SWI"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule"))
+                (self.vocab["T_VAR"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_REF"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_ERA"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_NUM"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_CON"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_DUP"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_OPR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_VAR"], self.vocab["T_SWI"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_REF"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_ERA"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_NUM"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_CON"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_DUP"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_OPR"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
+                (self.vocab["T_REF"], self.vocab["T_SWI"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_REF"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_ERA"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_NUM"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_CON"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_DUP"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_OPR"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_ERA"], self.vocab["T_SWI"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_REF"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_ERA"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_NUM"], None): (self.vocab["I_VOID"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_CON"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_DUP"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_OPR"], None): (self.vocab["I_OPER"], None, StateVar("key1","rule")),
+                (self.vocab["T_NUM"], self.vocab["T_SWI"], None): (self.vocab["I_SWIT"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_REF"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_NUM"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_CON"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_DUP"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_OPR"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_CON"], self.vocab["T_SWI"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_REF"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_NUM"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_CON"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_DUP"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_OPR"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_DUP"], self.vocab["T_SWI"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_REF"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_NUM"], None): (self.vocab["I_OPER"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_CON"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_DUP"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_OPR"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule")),
+                (self.vocab["T_OPR"], self.vocab["T_SWI"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_VAR"], None): (self.vocab["I_LINK"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_REF"], None): (self.vocab["I_CALL"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_ERA"], None): (self.vocab["I_ERAS"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_NUM"], None): (self.vocab["I_SWIT"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_CON"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_DUP"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_OPR"], None): (self.vocab["I_COMM"], None, StateVar("key1","rule")),
+                (self.vocab["T_SWI"], self.vocab["T_SWI"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule"))
                 }
 
         rules_inputs = [
@@ -174,13 +176,15 @@ class Ports(spa.Network):
                 empty = hp.check_key_empty(keys, ports)
                 if empty == 0:
                     str_key = str(len(ports))
-                    vocab.populate(f"k_{str_key}")
-                    keys.append(f"k_{str_key}")
-                    ports[f"k_{str_key}"] = tag, value
-                    return vocab[f"k_{str_key}"].v
+                    vocab.populate(f"K_{str_key}")
+                    keys.append(f"K_{str_key}")
+                    ports[f"K_{str_key}"] = tag, value
+                    print(ports)
+                    return vocab[f"K_{str_key}"].v
                 elif empty != 0:
                     name = hp.from_vocab(empty, self.vocab)
                     ports[name] = tag, value
+                    print(ports)
                     return empty
             return new
         # given the key, want the tag array passed along
@@ -234,24 +238,20 @@ class Ports(spa.Network):
         #if the tag for key 2, has a higher index in ordered_tags than the tag for key 1 return 1, else return 0
         # this one is definitely broken -> not actually pulling out the tags
         def port_swap(keys, ports):
+            ordered_tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
             def should_swap(t,x):
+                nonlocal ordered_tags
                 key1 = x[:self.dim]
                 key2 = x[self.dim:2*self.dim]
-                key_name1 = hp.from_vocab(key1, self.vocab)
-                key_name2 = hp.from_vocab(key2, self.vocab)
-                ordered_tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
-                a = 0
-                b = 0
-                if ports[key_name]:
-                    for i in ordered_tags:
-                        if ordered_tags[i] == key_name1: #need to index the first value in the tuple linked to the key
-                            a = i
-                        elif ordered_tags[i] == key_name2:
-                            b = i
+                # if both keys are in ordered tags, and if b > a, return 1
+                if (key1 @ key1) >= self.theta and (key2 @ key2) >= self.theta:
+                    tag1 = hp.from_vocab(key1, self.vocab)
+                    tag2 = hp.from_vocab(key2, self.vocab)
+                    a = ordered_tags.index(tag1)
+                    b = ordered_tags.index(tag2)
                     if b > a:
                         return 1
-                else:
-                    return 0
+                return 0
             return should_swap
         # here given a rule, if rule is in list high_rule, return 1, else return 0
         def high_rule():
@@ -319,7 +319,6 @@ class Pairs(spa.Network):
         self.vloc = vloc
 
         pair_args = ["PA_NEW","PA_FST","PA_SND","PA_ADJUST","PA_SFLAG","PA_GFLAG", "PA_NULL"]
-        hp.add_voc(pair_args, self.vocab)
 
         pair_statevars = [("command", spa.SemanticPointer),
                           ("pk1_path", spa.SemanticPointer), 
@@ -657,18 +656,18 @@ class Book(spa.Network):
     pass 
 
 
-with spa.Network() as model:
-    ports = {}
-    pairs = {}
-    keys = []
-    vloc = []
-    nloc = []
-    nodes_dict = {}
-    # need var_dict and rbagloc + rbag_dict
-    gnet = GNET(voc, theta, ports, pairs, keys, nloc, vloc, nodes_dict)
-    ports = Ports(voc, theta, keys, ports, nloc, vloc)
-    pairs = Pairs(voc, theta, keys, pairs, nloc, vloc)
-    # print(gnet.nloc)
+#with spa.Network() as model:
+#    ports = {}
+#    pairs = {}
+#    keys = []
+#    vloc = []
+#    nloc = []
+#    nodes_dict = {}
+#    # need var_dict and rbagloc + rbag_dict
+#    gnet = GNET(voc, theta, ports, pairs, keys, nloc, vloc, nodes_dict)
+#    ports = Ports(voc, theta, keys, ports, nloc, vloc)
+#    pairs = Pairs(voc, theta, keys, pairs, nloc, vloc)
+#    # print(gnet.nloc)
 
 
 

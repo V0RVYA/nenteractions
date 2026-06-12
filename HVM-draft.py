@@ -115,7 +115,7 @@ inputs = [
         ]
 
 table_detector = {
-        (voc["P_MAIN"], voc["P_MAIN"], None): (StateVar("pair","rbag")), 
+        (voc["P_MAIN"], voc["P_MAIN"], None): (StateVar("pair","rbag"),), 
         (voc["P_AUX"], None, None): (voc["NEXT"], StateVar("tag1","node")),
         (None, voc["P_AUX"], None): (voc["NEXT"], StateVar("tag1","node")),
         }
@@ -152,9 +152,9 @@ with spa.Network() as model:
         a = spa.State(voc)
         output_states = [spa.State(voc, label=outname) for outname, _ in outputs_detector[:-1]]
         # output_states.append(spa.State(len(dfa.output_nodes["rbags"]), subdimensions=1, label="strangefruit"))
-    nengo.Connection(a.output, dfa.input_a) 
+    nengo.Connection(a.output, detect_dfa.input_a) 
 
 
-    for outnode, state in zip(dfa.ordered_outputs, output_states):
+    for outnode, state in zip(detect_dfa.ordered_outputs, output_states):
         nengo.Connection(outnode, state.input)
 
