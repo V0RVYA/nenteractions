@@ -174,24 +174,49 @@ class Ports(spa.Network):
         # if tag is 0, should do nothing
         # once something has been added, must sleep
         def new_port(keys, ports):
+            stopwatch = 0.0
+            sleeptime = 0.1
+            state = 0
+            to_return = np.zeros(self.dim)
             def new(t,x):
+                nonlocal stopwatch, sleeptime, state, to_return
                 tag = x[:self.dim]
                 value = x[self.dim:2*self.dim]
-                empty = hp.check_key_empty(keys, ports) # is a vector or 0
-                if empty == 0:
-                    str_key = str(len(ports))
-                    vocab.populate(f"K_{str_key}")
-                    keys.append(f"K_{str_key}")
-                    ports[f"K_{str_key}"] = tag, value
-                    print(ports)
-                    return vocab[f"K_{str_key}"].v
-                elif empty != 0:
-                    name = hp.from_vocab(empty, self.vocab)
-                    ports[name] = tag, value
-                    print(ports)
-                    return empty
+                # This is a sleeping state machine
+                # In the 0 state it waits for an input and returns to_return, which is a 0 vector
+                # If it recieves an input, enters the 1 state, where it stores a tag, value in memory
+                #   then goes to sleep (2 state)
+                # In the 2 state it maintains the value it was outputting before, and waits for sleeptime ms,
+                #   "waking" by retruning to the 0 state and clearing its output at the end
+                # The nonlocal variables are necessary to maintain state between function calls
+                if state == 0 and tag @ tag >= self.theta:
+                    state = 1
+                elif state == 1:
+                    stopwatch = t
+                    state = 2
+                    empty = hp.check_key_empty(keys, ports) # is a vector or 0
+                    if empty == 0:
+                        str_key = str(len(ports))
+                        vocab.populate(f"K_{str_key}")
+                        keys.append(f"K_{str_key}")
+                        ports[f"K_{str_key}"] = tag, value
+                        print(ports)
+                        to_return[:] = vocab[f"K_{str_key}"].v
+                    elif empty != 0:
+                        name = hp.from_vocab(empty, self.vocab)
+                        ports[name] = tag, value
+                        print(ports)
+                        to_return[:] = empty
+                elif state == 2 and t > stopwatch + sleeptime:
+                    stopwatch = 0.0
+                    state = 0
+                    to_return[:] = 0
+
+                return to_return
+
+                
             return new
-        # given the key, want the tag array passed along
+        # retrieves the tag of the node identified by key and returns it
         def port_tag(keys, ports):
             def get_tag(t,x):
                 key = x
