@@ -84,8 +84,8 @@ class Ports(spa.Network):
         interaction_rules = ["I_CALL","I_LINK","I_VOID","I_ERAS","I_COMM","I_ANNI","I_OPER","I_SWIT", "I_NULL"]
         hp.add_voc(interaction_rules, self.vocab)
 
-        tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI", "TEST", "TRUE", "FALSE"]
-        hp.add_voc(tags, self.vocab)
+        self.tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
+        hp.add_voc(self.tags, self.vocab)
 
 
         rule_statevars = [("key1", spa.SemanticPointer),
@@ -169,11 +169,15 @@ class Ports(spa.Network):
         # want:
         # A new entry in the port dictionary containing the tag + value
         # to return the key to the tag/value in the port dictionary
+        # tag must come from self.tags or be a 0 vector
+        # value can be arbitrary
+        # if tag is 0, should do nothing
+        # once something has been added, must sleep
         def new_port(keys, ports):
             def new(t,x):
                 tag = x[:self.dim]
                 value = x[self.dim:2*self.dim]
-                empty = hp.check_key_empty(keys, ports)
+                empty = hp.check_key_empty(keys, ports) # is a vector or 0
                 if empty == 0:
                     str_key = str(len(ports))
                     vocab.populate(f"K_{str_key}")
@@ -238,17 +242,15 @@ class Ports(spa.Network):
         #if the tag for key 2, has a higher index in ordered_tags than the tag for key 1 return 1, else return 0
         # this one is definitely broken -> not actually pulling out the tags
         def port_swap(keys, ports):
-            ordered_tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
             def should_swap(t,x):
-                nonlocal ordered_tags
                 key1 = x[:self.dim]
                 key2 = x[self.dim:2*self.dim]
                 # if both keys are in ordered tags, and if b > a, return 1
                 if (key1 @ key1) >= self.theta and (key2 @ key2) >= self.theta:
                     tag1 = hp.from_vocab(key1, self.vocab)
                     tag2 = hp.from_vocab(key2, self.vocab)
-                    a = ordered_tags.index(tag1)
-                    b = ordered_tags.index(tag2)
+                    a = self.tags.index(tag1)
+                    b = self.tags.index(tag2)
                     if b > a:
                         return 1
                 return 0
@@ -275,16 +277,20 @@ class Ports(spa.Network):
             return adjust
 
         with self:
-            self.port_dfa = DFA(port_statevars, port_inputs, port_outputs, port_table, self.vocab, start=(self.vocab["P_NULL"], self.vocab["P_NULL"], None)) 
-            self.rule_dfa = DFA(rule_statevars, rules_inputs, rules_outputs, rules_table, self.vocab, start=(self.vocab["I_NULL"], self.vocab["I_NULL"], None)) 
+            #self.port_dfa = DFA(port_statevars, port_inputs, port_outputs, port_table, self.vocab, start=(self.vocab["P_NULL"], self.vocab["P_NULL"], None)) 
+            #self.rule_dfa = DFA(rule_statevars, rules_inputs, rules_outputs, rules_table, self.vocab, start=(self.vocab["I_NULL"], self.vocab["I_NULL"], None)) 
             # setting up inputs
-            self.trk_in = spa.State(self.vocab, label = 'tag,rule,key in')
-            self.vk_in = spa.State(self.vocab, label = 'value,key in')
-            self.dummyin = spa.State(self.vocab, label = 'dummy in')
+            conf = nengo.Config(nengo.Ensemble)
+            conf[nengo.Ensemble].neuron_type = nengo.neurons.Direct()
+            with conf:
+                self.trk_in = spa.State(self.vocab, label = 'tag,rule,key in')
+                self.vk_in = spa.State(self.vocab, label = 'value,key in')
+                self.dummyin = spa.State(self.vocab, label = 'dummy in')
 
-            nengo.Connection(self.trk_in.output, self.port_dfa.input_trk)
-            nengo.Connection(self.vk_in.output, self.port_dfa.input_vk)
-            nengo.Connection(self.dummyin.output, self.rule_dfa.input_dummyin)
+            # uncomment these
+            #nengo.Connection(self.trk_in.output, self.port_dfa.input_trk)
+            #nengo.Connection(self.vk_in.output, self.port_dfa.input_vk)
+            #nengo.Connection(self.dummyin.output, self.rule_dfa.input_dummyin)
 
             #setting up outputs
             self.port_new = nengo.Node(output = new_port(self.keys, self.ports), size_in = 2*self.dim, size_out = self.dim, label = 'port_new')
@@ -294,15 +300,17 @@ class Ports(spa.Network):
             self.port_rule = nengo.Node(output = high_rule(), size_in = self.dim, size_out = 1, label = 'port_rule')
             # port_adjust = nengo.Node(output = adjust_port(self.keys, self.ports), size_in = 2*self.dim, size_out = self.dim, label = 'port_adjust')
 
-            nengo.Connection(self.port_dfa.ordered_outputs[0], self.port_new[:self.dim]) 
-            nengo.Connection(self.port_dfa.ordered_outputs[1], self.port_new[self.dim:2*self.dim])
-            nengo.Connection(self.port_dfa.ordered_outputs[2], self.port_tag)
-            nengo.Connection(self.port_dfa.ordered_outputs[3], self.port_val)
-            nengo.Connection(self.port_dfa.ordered_outputs[4], self.rule_dfa.statevars.ordered_svs[0].input)
-            nengo.Connection(self.port_dfa.ordered_outputs[5], self.rule_dfa.statevars.ordered_svs[1].input)
-            nengo.Connection(self.port_dfa.ordered_outputs[6], self.port_swap[:self.dim])
-            nengo.Connection(self.port_dfa.ordered_outputs[7], self.port_swap[self.dim:2*self.dim])
-            nengo.Connection(self.port_dfa.ordered_outputs[8], self.port_rule)
+            # uncomment these
+            #nengo.Connection(self.port_dfa.ordered_outputs[0], self.port_new[:self.dim]) 
+            #nengo.Connection(self.port_dfa.ordered_outputs[1], self.port_new[self.dim:2*self.dim])
+            #nengo.Connection(self.port_dfa.ordered_outputs[2], self.port_tag)
+            #nengo.Connection(self.port_dfa.ordered_outputs[3], self.port_val)
+            #nengo.Connection(self.port_dfa.ordered_outputs[4], self.rule_dfa.statevars.ordered_svs[0].input)
+            #nengo.Connection(self.port_dfa.ordered_outputs[5], self.rule_dfa.statevars.ordered_svs[1].input)
+            #nengo.Connection(self.port_dfa.ordered_outputs[6], self.port_swap[:self.dim])
+            #nengo.Connection(self.port_dfa.ordered_outputs[7], self.port_swap[self.dim:2*self.dim])
+            #nengo.Connection(self.port_dfa.ordered_outputs[8], self.port_rule)
+            
             #nengo.Connection(self.port_dfa.ordered_outputs[9], node_free)
             #nengo.Connection(self.port_dfa.ordered_outputs[10], node_free)
 
