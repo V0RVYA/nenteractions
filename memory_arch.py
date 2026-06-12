@@ -244,12 +244,10 @@ class Ports(spa.Network):
                 key_name1 = hp.from_vocab(key1, self.vocab)
                 key_name2 = hp.from_vocab(key2, self.vocab)
                 ordered_tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
-                a = -1
-                b = -1
-                if key_name1 in ports and key_name2 in ports:
-                    if key_name1 in ordered_tags:
+                # if both keys are in ports and both keys are in ordered tags, and if b > a, return 1
+                if (key_name1 in ports and key_name2 in ports and 
+                    key_name1 in ordered_tags and key_name2 in ordered_tags):
                         a = ordered_tags.index(key_name1)
-                    if key_name2 in ordered_tags:
                         b = ordered_tags.index(key_name2)
                     if b > a:
                         return 1
