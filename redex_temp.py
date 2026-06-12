@@ -103,9 +103,7 @@ class Redex_Push(spa.Network):
                 (self.vocab["T_SWI"], voc["T_SWI"], None): (self.vocab["I_ANNI"], None, StateVar("key1","rule"))
                 }
 
-        rules_inputs = [
-                ("dummyin", self.dim),
-                ]
+        rules_inputs = []
         rules_outputs = [
                 ("rule_out","rule")
                 ]
@@ -120,8 +118,9 @@ class Redex_Push(spa.Network):
         # send the return address(RPU_2), command(PA_FST) and the pair out
         def redex_get_first(rpair, keys):
             def get_fst(t,x):
+                nonlocal rpair, keys
                 pair = x
-                key_name = hp.from_voc(pair, self.vocab)
+                key_name = hp.from_vocab(pair, self.vocab)
                 if key_name in keys:
                     rpair.append(pair)
                     return np.concatenate(self.vocab["RPU_2"].v, self.vocab["PA_FST"].v, pair)
@@ -133,9 +132,12 @@ class Redex_Push(spa.Network):
         # send the return address, command and pair out
         def redex_get_second(rports, rpair, keys):
             def get_snd(t,x):
+                nonlocal rports, rpair, keys
                 port = x
+                if len(rpair) == 0:
+                    return np.zeros(3*self.dim)                    
                 pair = rpair[0]
-                key_name = hp.from_voc(port, self.vocab)
+                key_name = hp.from_vocab(port, self.vocab)
                 if key_name in keys:
                     rports.append(port)
                     return np.concatenate(self.vocab["RPT_1"].v, self.vocab["PA_SND"].v, pair)
@@ -147,9 +149,12 @@ class Redex_Push(spa.Network):
         # send the return address, command and first port key out
         def fst_port_tag(rports, keys):
             def get_tag(t,x):
+                nonlocal rports, keys
                 port2 = x
+                if len(rports) == 0:
+                    return np.zeros(3*self.dim)
                 port1 = rports[0]
-                key_name = hp.from_voc(port1, self.vocab)
+                key_name = hp.from_vocab(port1, self.vocab)
                 if key_name in keys:
                     rports[1] = port2
                     return np.concatenate(self.vocab["RPT_2"].v, self.vocab["P_GTAG"].v, port1)
@@ -161,9 +166,12 @@ class Redex_Push(spa.Network):
         # send out, return address, command and second port key out
         def snd_port_tag(rports, rtags, keys):
             def get_tag(t,x):
+                nonlocal rports, rtags, keys
                 tag1 = x
+                if len(rports) < 2:
+                    return np.zeros(3*self.dim)
                 port2 = rports[1]
-                key_name = hp.from_voc(port2, self.vocab)
+                key_name = hp.from_vocab(port2, self.vocab)
                 if key_name in keys:
                     rtags[0] = tag1
                     return np.concatenate(self.vocab["RRULE"].v, self.vocab["P_GTAG"].v, port2)
@@ -175,11 +183,14 @@ class Redex_Push(spa.Network):
         # clear rports and rtags memory, return both tags
         def get_rule(rports, rtags):
             def rule(t,x):
+                nonlocal rports, rtags
                 tag2 = x
+                if len(rtags) == 0:
+                    return np.zeros(2*self.dim)
                 tag1 = rtags[0]
                 tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
-                key1_name = hp.from_voc(tag1, self.vocab)
-                key2_name = hp.from_voc(tag2, self.vocab)
+                key1_name = hp.from_vocab(tag1, self.vocab)
+                key2_name = hp.from_vocab(tag2, self.vocab)
                 if key1_name in tags and key2_name in tags:
                     rports = []
                     rtags = []
@@ -194,15 +205,16 @@ class Redex_Push(spa.Network):
         # clear rpair, return nothing
         def push(rbag_dict, rpair, keys):
             def push_to(t,x):
+                nonlocal rbag_dict, rpair, keys
                 rule = x
-                rule_name = hp.from_voc(rule, self.vocab)
+                rule_name = hp.from_vocab(rule, self.vocab)
                 high_rules = ["I_LINK", "I_VOID", "I_ERAS", "I_ANNI"]
                 rules = ["I_CALL","I_LINK","I_VOID","I_ERAS","I_COMM","I_ANNI","I_OPER","I_SWIT"]
                 if rule_name in rules:
                     if rule_name in high_rules:
                         empty = hp.check_key_empty(keys, rbag_dict["HIGH"])
                         if empty == 0:
-                            str_key = str(len(rbag_dicts["HIGH"]))
+                            str_key = str(len(rbag_dict["HIGH"]))
                             vocab.populate(f"k_{str_key}")
                             keys.append(f"k_{str_key}")
                             rbag_dict["HIGH"][f"k_{str_key}"] = rpair[0]
@@ -225,13 +237,12 @@ class Redex_Push(spa.Network):
                             rbag_dict["HIGH"][name] = rpair[0]
                             rpair = []
                             return 0
+                return 0
             return push_to
 
         with self:
             self.rule_dfa = DFA(rule_statevars, rules_inputs, rules_outputs, rules_table, self.vocab, start=(self.vocab["I_NULL"], self.vocab["I_NULL"], None))
             # setting up inputs
-            self.dummy_in = spa.State(self.vocab, label = 'dummyin')
-            nengo.Connection(self.dummy_in.output, self.rule_dfa.input_dummyin)
 
             #setting up outputs
             self.get_fst = nengo.Node(output = redex_get_first(self.rpair, self.keys), size_in = self.dim, size_out = 3*self.dim, label = 'redex_push_get1')
@@ -291,6 +302,7 @@ class Redexes(spa.Network):
         # if not, get the last key from low_rbag, and return the pair value from the low subdict
         def pop_redex(rbag_dict):
             def popper(t,x):
+                nonlocal rbag_dict
                 command = x
                 high_rbag = rbag_dict["HIGH"]
                 low_rbag = rbag_dict["LOW"]
@@ -321,8 +333,8 @@ class Redexes(spa.Network):
             self.redex_push = Redex_Push(self.vocab, self.theta, self.rbag_dict, self.keys)
  
             #connecting dfa outputs to function ports performing operations on nodes_dict
-            nengo.Connection(self.redex_dfa.ordered_outputs[1], self.redex_pop[:self.dim]) 
-            nengo.Connection(self.redex_dfa.ordered_outputs[0], self.redex_push.get_fst[:self.dim])
+            nengo.Connection(self.redex_dfa.ordered_outputs[1], self.redex_pop) 
+            nengo.Connection(self.redex_dfa.ordered_outputs[0], self.redex_push.get_fst)
 
 
 with spa.Network() as model:
