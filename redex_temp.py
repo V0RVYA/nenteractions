@@ -11,23 +11,6 @@ theta = 0.3
 voc = spa.Vocabulary(d)
 voc.add("NULL", np.zeros(d))
 
-class mail_box(spa.Network):
-    def __init__(self, vocab, theta):
-        super().__init__(label=label)
-        
-
-
-
-class command(spa.State):
-    def __init__(self):
-        super().__init__(label=label)
-
-
-class Scheduler(spa.Network):
-    def __init__(self, vocab, theta, rbags, keys, nloc): #be sure to add label, for each scheduler
-        super().__init__(label=label)
-
-        
 class Redex_Push(spa.Network):
     def __init__(self, vocab, theta, rbags, keys, label = 'push_redex'):
         super().__init__(label=label)
