@@ -238,17 +238,17 @@ class Ports(spa.Network):
         #if the tag for key 2, has a higher index in ordered_tags than the tag for key 1 return 1, else return 0
         # this one is definitely broken -> not actually pulling out the tags
         def port_swap(keys, ports):
+            ordered_tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
             def should_swap(t,x):
+                nonlocal ordered_tags
                 key1 = x[:self.dim]
                 key2 = x[self.dim:2*self.dim]
-                key_name1 = hp.from_vocab(key1, self.vocab)
-                key_name2 = hp.from_vocab(key2, self.vocab)
-                ordered_tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
-                # if both keys are in ports and both keys are in ordered tags, and if b > a, return 1
-                if (key_name1 in ports and key_name2 in ports and 
-                    key_name1 in ordered_tags and key_name2 in ordered_tags):
-                        a = ordered_tags.index(key_name1)
-                        b = ordered_tags.index(key_name2)
+                # if both keys are in ordered tags, and if b > a, return 1
+                if (key1 @ key1) >= self.theta and (key2 @ key2) >= self.theta:
+                    tag1 = hp.from_vocab(key1, self.vocab)
+                    tag2 = hp.from_vocab(key2, self.vocab)
+                    a = ordered_tags.index(tag1)
+                    b = ordered_tags.index(tag2)
                     if b > a:
                         return 1
                 return 0
