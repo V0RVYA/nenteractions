@@ -197,15 +197,16 @@ class Ports(spa.Network):
                     empty = hp.check_key_empty(keys, ports) # is a vector or 0
                     if empty == 0:
                         str_key = str(len(ports))
-                        vocab.populate(f"K_{str_key}")
-                        keys.append(f"K_{str_key}")
-                        ports[f"K_{str_key}"] = tag, value
-                        print(ports)
-                        to_return[:] = vocab[f"K_{str_key}"].v
+                        new_name = f"K_{str_key}"
+                        vocab.populate(new_name)
+                        keys.append(new_name)
+                        ports[new_name] = tag, value
+                        print(new_name, list(ports.keys()))
+                        to_return[:] = vocab[new_name].v
                     elif empty != 0:
                         name = hp.from_vocab(empty, self.vocab)
                         ports[name] = tag, value
-                        print(ports)
+                        print(name, list(ports.keys))
                         to_return[:] = empty
                 elif state == 2 and t > stopwatch + sleeptime:
                     stopwatch = 0.0
