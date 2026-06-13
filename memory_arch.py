@@ -18,11 +18,13 @@ class Ports(spa.Network):
                  ports:dict[str, (np.ndarray, np.ndarray)],
                  nloc:list[spa.SemanticPointer], 
                  vloc:list[spa.SemanticPointer], 
-                 label:str = "ports"):
+                 label:str = "ports",
+                 sleeptime:float=0.1):
         super().__init__(label = label)
         self.vocab = vocab
         self.dim = vocab.dimensions
         self.theta = theta
+        self.sleeptime = sleeptime
 
         # dictionary that stores the ports 
         self.keys = keys
@@ -175,11 +177,10 @@ class Ports(spa.Network):
         # once something has been added, must sleep
         def new_port(keys, ports):
             stopwatch = 0.0
-            sleeptime = 0.1
             state = 0
             to_return = np.zeros(self.dim)
             def new(t,x):
-                nonlocal stopwatch, sleeptime, state, to_return
+                nonlocal stopwatch, state, to_return
                 tag = x[:self.dim]
                 value = x[self.dim:2*self.dim]
                 # This is a sleeping state machine
@@ -201,28 +202,24 @@ class Ports(spa.Network):
                         vocab.populate(new_name)
                         keys.append(new_name)
                         ports[new_name] = tag, value
-                        print(new_name, list(ports.keys()))
                         to_return[:] = vocab[new_name].v
                     elif empty != 0:
                         name = hp.from_vocab(empty, self.vocab)
                         ports[name] = tag, value
-                        print(name, list(ports.keys))
                         to_return[:] = empty
-                elif state == 2 and t > stopwatch + sleeptime:
+                elif state == 2 and t > stopwatch + self.sleeptime:
                     stopwatch = 0.0
                     state = 0
                     to_return[:] = 0
 
                 return to_return
-
-                
             return new
         # retrieves the tag of the node identified by key and returns it
         def port_tag(keys, ports):
             def get_tag(t,x):
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
-                if key_name in keys and key_name in list(ports.keys()):
+                if key_name in keys and key_name in ports:
                     tag, val = ports[key_name]
                     return tag
                 else:
