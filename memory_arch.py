@@ -18,11 +18,13 @@ class Ports(spa.Network):
                  ports:dict[str, (np.ndarray, np.ndarray)],
                  nloc:list[spa.SemanticPointer], 
                  vloc:list[spa.SemanticPointer], 
-                 label:str = "ports"):
+                 label:str = "ports",
+                 sleeptime:float=0.1):
         super().__init__(label = label)
         self.vocab = vocab
         self.dim = vocab.dimensions
         self.theta = theta
+        self.sleeptime = sleeptime
 
         # dictionary that stores the ports 
         self.keys = keys
@@ -95,18 +97,17 @@ class Ports(spa.Network):
         # once something has been added, must sleep
         def new_port(keys, ports):
             stopwatch = 0.0
-            sleeptime = 0.1
             state = 0
             to_return = np.zeros(self.dim)
             def new(t,x):
-                nonlocal stopwatch, sleeptime, state, to_return, keys, ports
+                nonlocal stopwatch, state, to_return, keys, ports
                 tag = x[:self.dim]
                 value = x[self.dim:2*self.dim]
                 # This is a sleeping state machine
                 # In the 0 state it waits for an input and returns to_return, which is a 0 vector
                 # If it recieves an input, enters the 1 state, where it stores a tag, value in memory
                 #   then goes to sleep (2 state)
-                # In the 2 state it maintains the value it was outputting before, and waits for sleeptime ms,
+                # In the 2 state it maintains the value it was outputting before, and waits for self.sleeptime ms,
                 #   "waking" by retruning to the 0 state and clearing its output at the end
                 # The nonlocal variables are necessary to maintain state between function calls
                 if state == 0 and tag @ tag >= self.theta:
@@ -121,14 +122,12 @@ class Ports(spa.Network):
                         vocab.populate(new_name)
                         keys.append(new_name)
                         ports[new_name] = tag, value
-                        print(new_name, list(ports.keys()))
                         to_return[:] = vocab[new_name].v
                     elif empty != 0:
                         name = hp.from_vocab(empty, self.vocab)
                         ports[name] = tag, value
-                        print(name, list(ports.keys))
                         to_return[:] = empty
-                elif state == 2 and t > stopwatch + sleeptime:
+                elif state == 2 and t > stopwatch + self.sleeptime:
                     stopwatch = 0.0
                     state = 0
                     to_return[:] = 0
@@ -142,21 +141,20 @@ class Ports(spa.Network):
         # if input is 0's, or not a key (from error) or not a key in use in ports => return np.zeros(dim)
         def port_tag(keys, ports):
             stopwatch = 0.0
-            sleeptime = 0.1
             state = 0
-            to_return = no.zeros(self.dim)
+            to_return = np.zeros(self.dim)
             def get_tag(t,x):
-                nonlocal keys, ports, stopwatch, sleeptime, state
+                nonlocal keys, ports, stopwatch, state
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
-                if state = 0 and key_name in ports:
+                if state == 0 and key_name in ports:
                     state = 1
                 elif state == 1:
                     stopwatch = t
                     state = 2
                     tag, val = ports[key_name]
                     to_return[:] = tag
-                elif state = 2 and t > stopwatch + sleeptime:
+                elif state == 2 and t > stopwatch + self.sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return[:] = 0
@@ -168,11 +166,10 @@ class Ports(spa.Network):
         # if input is all 0's or not key or not key in ports_dict -> return all 0 array
         def port_val(keys, ports):
             stopwatch = 0.0
-            sleeptime = 0.1
             state = 0
-            to_return = no.zeros(self.dim)
+            to_return = np.zeros(self.dim)
             def get_val(t,x):
-                nonlocal keys, ports, stopwatch, sleeptime, to_return
+                nonlocal state, keys, ports, stopwatch, to_return
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
                 if state == 0 and key_name in ports:
@@ -182,7 +179,7 @@ class Ports(spa.Network):
                     state = 2
                     tag, val = ports[key_name]
                     to_return[:] = val
-                elif state == 2 and t > stopwatch + sleeptime:
+                elif state == 2 and t > stopwatch + self.sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return[:] = 0
@@ -220,15 +217,14 @@ class Ports(spa.Network):
         # if 0's received or not keys received -> return 0
         def port_swap(keys, ports):
             stopwatch = 0.0
-            sleeptime = 0.1
             state = 0
             to_return = 0
             def should_swap(t,x):
-                nonlocal stopwatch, sleeptime, state, to_return, keys, ports
+                nonlocal stopwatch, state, to_return, keys, ports
                 key1 = x[:self.dim]
                 key2 = x[self.dim:2*self.dim]
                 # if both keys are in ordered tags, and if b > a, return 1
-                if state ==0 and (key1 @ key1) >= self.theta and (key2 @ key2) >= self.theta:
+                if state == 0 and (key1 @ key1) >= self.theta and (key2 @ key2) >= self.theta:
                     state = 1
                 if state == 1:
                     stopwatch = t
@@ -243,7 +239,7 @@ class Ports(spa.Network):
                     b = self.tags.index(tag2_str)
                     if b > a:
                         to_return = 1
-                if state == 2 and t > stopwatch + sleeptime:
+                if state == 2 and t > stopwatch + self.sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return = 0
@@ -580,7 +576,7 @@ class Nodes(spa.Network):
                 key_name = hp.from_vocab(key, self.vocab)
                 if state == 0 and key in nodes_dict:
                     state = 1
-                elif state = 1:
+                elif state == 1:
                     stopwatch = t
                     state = 2
                     to_return[:] = nodes_dict[key_name]
@@ -601,11 +597,11 @@ class Nodes(spa.Network):
             state = 0
             to_return = np.zeros(self.dim)
             def exchanger(t, x):
-                nonlocal stopwatch, sleeptimer, state, to_return, nodes_dict, keys
+                nonlocal stopwatch, sleeptime, state, to_return, nodes_dict, keys
                 key = x[:self.dim]
                 pair = x[self.dim:2*self.dim]
                 key_name = hp.from_vocab(key, self.vocab)
-                if state == 0 key_name in nodes_dict:
+                if state == 0 and key_name in nodes_dict:
                     state = 1
                 elif state == 1:
                     stopwatch = t
@@ -628,16 +624,16 @@ class Nodes(spa.Network):
             state = 0
             to_return = np.zeros(self.dim)
             def taker(t,x):
-                nonlocal stopwatch, sleeptimer, state, to_return, nodes_dict, keys
+                nonlocal stopwatch, sleeptime, state, to_return, nodes_dict, keys
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
                 if state == 0 and key_name in nodes_dict:
                     state = 1
-                elif state = 1:
+                elif state == 1:
                     stopwatch = t
                     state = 2
                     to_return[:] = nodes_dict.pop(key_name)
-                elif state == 2 and t > stopwatch + sleeptimer:
+                elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return[:] = 0
@@ -656,7 +652,7 @@ class Nodes(spa.Network):
                 key_name = hp.from_vocab(key, self.vocab)
                 if state == 0 and key_name in keys:
                     state = 1
-                elif state = 1:
+                elif state == 1:
                     stopwatch = t
                     state = 2
                     if key_name not in keys:
@@ -664,7 +660,7 @@ class Nodes(spa.Network):
                 elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
-                    to_return 0
+                    to_return = 0
                 return to_return
             return freedom
 
