@@ -17,6 +17,8 @@ def add_voc(lis, vocab):
         # reverse_voc[tuple(vocab[v].v)] = v
 
 def check_key_empty(keys, mem_dict):
+    if len(keys) == 0:
+        return 0
     for v in keys:
         if v not in mem_dict:
             return v
@@ -29,5 +31,5 @@ def from_vocab(pointer, vocab):
     lis = list(vocab)
     word = lis[best_index]
     return word
-    print (f"the value is: {k}")
+    
 
