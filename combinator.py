@@ -12,19 +12,19 @@ d = 128
 theta = 0.3
 voc = spa.Vocabulary(d)
 voc.add("NULL", np.zeros(d))
-
+#print testing commit
 class InteractionCombinator(spa.Network):
     def __init__(self, vocab, theta, keys, ports, nloc, vloc, label = "Interaction Combinator"):
         super().__init__(label = label)
     pass
 
 class ERAS_Interaction(spa.Network):
-    def __init__(self, vocab, theta, keys, ports, nloc, vloc, label = "Interaction Combinator"):
+    def __init__(self, vocab, theta, keys, ports, nloc, vloc, label = "ERAS Interaction"):
         super().__init__(label = label)
     pass
 
 class LINK_Interaction(spa.Network):
-    def __init__(self, vocab, theta, keys, ports, nloc, vloc, label = "Interaction Combinator"):
+    def __init__(self, vocab, theta, keys, ports, nloc, vloc, label = "LINK Interaction"):
         super().__init__(label = label)
     pass
 
