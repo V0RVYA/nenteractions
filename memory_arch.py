@@ -254,7 +254,7 @@ class Ports(spa.Network):
         def adjust_port(keys :  list[str], 
                         ports:  dict[str, np.ndarray], 
                         nloc:   list[str], 
-                        vloc)   list[str]:
+                        vloc:   list[str]):
             def adjust(t,x):
                 # remove is_var and is_node -> logic only used here
                 # need to figure out how to perform the logic, of adjusting the pair value to the location of the stored value in nodes/vars
