@@ -111,10 +111,8 @@ class Ports(spa.Network):
                 #   "waking" by retruning to the 0 state and clearing its output at the end
                 # The nonlocal variables are necessary to maintain state between function calls
                 if state == 0 and tag @ tag >= self.theta:
-                    state = 1
-                elif state == 1:
                     stopwatch = t
-                    state = 2
+                    state = 1
                     empty = hp.check_key_empty(keys, ports) # is a vector or 0
                     if empty == 0:
                         str_key = str(len(ports))
@@ -127,7 +125,7 @@ class Ports(spa.Network):
                         name = hp.from_vocab(empty, self.vocab)
                         ports[name] = tag, value
                         to_return[:] = empty
-                elif state == 2 and t > stopwatch + self.sleeptime:
+                elif state == 1 and t > stopwatch + self.sleeptime:
                     stopwatch = 0.0
                     state = 0
                     to_return[:] = 0
@@ -148,13 +146,11 @@ class Ports(spa.Network):
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
                 if state == 0 and key_name in ports:
-                    state = 1
-                elif state == 1:
                     stopwatch = t
-                    state = 2
+                    state = 1
                     tag, val = ports[key_name]
                     to_return[:] = tag
-                elif state == 2 and t > stopwatch + self.sleeptime:
+                elif state == 1 and t > stopwatch + self.sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return[:] = 0
@@ -173,13 +169,11 @@ class Ports(spa.Network):
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
                 if state == 0 and key_name in ports:
-                    state = 1
-                elif state == 1:
                     stopwatch = t
-                    state = 2
+                    state = 1
                     tag, val = ports[key_name]
                     to_return[:] = val
-                elif state == 2 and t > stopwatch + self.sleeptime:
+                elif state == 1 and t > stopwatch + self.sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return[:] = 0
@@ -225,24 +219,23 @@ class Ports(spa.Network):
                 key2 = x[self.dim:2*self.dim]
                 # if both keys are in ordered tags, and if b > a, return 1
                 if state == 0 and (key1 @ key1) >= self.theta and (key2 @ key2) >= self.theta:
-                    state = 1
-                if state == 1:
                     stopwatch = t
-                    state = 2
+                    state = 1
                     key1_name = hp.from_vocab(key1, self.vocab)
                     key2_name = hp.from_vocab(key2, self.vocab)
-                    tag1, val1 = port[key1_name]
-                    tag2, val2 = port[key2_name]
+                    tag1, val1 = self.ports_dict[key1_name]
+                    tag2, val2 = self.ports_dict[key2_name]
                     tag1_str = hp.from_vocab(tag1, self.vocab)
                     tag2_str = hp.from_vocab(tag2, self.vocab)
                     a = self.tags.index(tag1_str)
                     b = self.tags.index(tag2_str)
                     if b > a:
                         to_return = 1
-                if state == 2 and t > stopwatch + self.sleeptime:
+                    else:
+                        to_return = 0
+                if state == 1 and t > stopwatch + self.sleeptime:
                     state = 0
                     stopwatch = 0.0
-                    to_return = 0
                 return to_return
             return should_swap
         # skip this logic moved to redexes because only redexes uses it, and it reduces the number of connections being named
