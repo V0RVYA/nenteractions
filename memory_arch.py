@@ -12,13 +12,13 @@ from collections import UserDict
 class Ports(spa.Network):
     #takes the value of the port and the tag of type as arguments
     def __init__(self, 
-                 vocab:spa.Vocabulary, 
-                 theta:float, 
-                 keys:list[str], 
-                 ports:dict[str, (np.ndarray, np.ndarray)],
-                 nloc:list[spa.SemanticPointer], 
-                 vloc:list[spa.SemanticPointer], 
-                 label:str = "ports",
+                 vocab: spa.Vocabulary, 
+                 theta: float, 
+                 keys:  list[str], 
+                 ports: dict[str, (np.ndarray, np.ndarray)],
+                 nloc:  list[spa.SemanticPointer], 
+                 vloc:  list[spa.SemanticPointer], 
+                 label: str = "ports",
                  sleeptime:float=0.1):
         super().__init__(label = label)
         self.vocab = vocab
@@ -95,7 +95,8 @@ class Ports(spa.Network):
         # value can be arbitrary
         # if tag is 0, should do nothing
         # once something has been added, must sleep
-        def new_port(keys, ports):
+        def new_port(keys : list[str], 
+                     ports: dict[str, np.ndarray]):
             stopwatch = 0.0
             state = 0
             to_return = np.zeros(self.dim)
@@ -143,7 +144,8 @@ class Ports(spa.Network):
         #want it to retrieve and return the first value of the tuple stored in ports_dict under that key -> the tag of the port
         # return the tag(vector)
         # if input is 0's, or not a key (from error) or not a key in use in ports => return np.zeros(dim)
-        def port_tag(keys, ports):
+        def port_tag(keys : list[str], 
+                     ports: dict[str, np.ndarray]):
             stopwatch = 0.0
             state = 0
             to_return = np.zeros(self.dim)
@@ -166,7 +168,8 @@ class Ports(spa.Network):
         # given key to port dict(array) -> retrieve string from vocab 
         # retrieve second value in tuple assigned to the key in port dict as array
         # if input is all 0's or not key or not key in ports_dict -> return all 0 array
-        def port_val(keys, ports):
+        def port_val(keys : list[str], 
+                     ports: dict[str, np.ndarray]):
             stopwatch = 0.0
             state = 0
             to_return = np.zeros(self.dim)
@@ -187,7 +190,8 @@ class Ports(spa.Network):
             return get_val
             
         #remove -> inside of adjust port -> ignore this
-        def port_is_node(keys, ports):
+        def port_is_node(keys : list[str], 
+                         ports: dict[str, np.ndarray]):
             def is_node(t,x):
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
@@ -200,12 +204,13 @@ class Ports(spa.Network):
             return is_node
         
         #remove -> inside of adjust port -> ignore this
-        def port_is_var(keys, ports):
+        def port_is_var(keys : list[str], 
+                        ports: dict[str, np.ndarray]):
             def is_var(t,x):
                 key = x
                 key_name = hp.from_vocab(key, self.vocab)
                 if ports[key_name]:
-                    if key_name == "T_VAR":
+                    if key_name == "t_var":
                         return 1
                 else:
                     return 0
@@ -215,7 +220,8 @@ class Ports(spa.Network):
         # retrieve the tag(array) associated with each key -> retrieve the string of the tag from vocab
         # if the tag for key 2, has a higher index in ordered_tags than the tag for key 1 return 1, else return 0
         # if 0's received or not keys received -> return 0
-        def port_swap(keys, ports):
+        def port_swap(keys : list[str], 
+                      ports: dict[str, np.ndarray]):
             stopwatch = 0.0
             state = 0
             to_return = 0
@@ -244,19 +250,11 @@ class Ports(spa.Network):
                     stopwatch = 0.0
                 return to_return
             return should_swap
-        # skip this logic moved to redexes because only redexes uses it, and it reduces the number of connections being named
-        def high_rule():
-            def is_high(t,x):
-                rule = x
-                rule_name = hp.from_vocab(rule, self.vocab)
-                high_rules = ["I_LINK", "I_VOID", "I_ERAS", "I_ANNI"]
-                if rule_name in high_rules:
-                    return 1
-                else:
-                    return 0
-            return is_high
-        #ignore this for now
-        def adjust_port(keys, ports, nloc, vloc):
+        
+        def adjust_port(keys :  list[str], 
+                        ports:  dict[str, np.ndarray], 
+                        nloc:   list[str], 
+                        vloc)   list[str]:
             def adjust(t,x):
                 # remove is_var and is_node -> logic only used here
                 # need to figure out how to perform the logic, of adjusting the pair value to the location of the stored value in nodes/vars
@@ -302,7 +300,16 @@ class Ports(spa.Network):
 
 
 class Pairs(spa.Network):
-    def __init__(self, vocab, theta, keys, pairs, ports, nloc, vloc, label = 'pairs'):
+    def __init__(self, 
+                 vocab: spa.Vocabulary, 
+                 theta: float, 
+                 keys:  list[str], 
+                 pairs: dict[str, np.ndarray], 
+                 ports: dict[str, np.ndarray], 
+                 nloc:  list[str], 
+                 vloc:  list[str],
+                 sleeptimer:float=0.1,
+                 label = 'pairs'):
         super().__init__(label = label)
         self.vocab = vocab
         self.theta = theta
