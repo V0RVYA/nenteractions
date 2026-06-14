@@ -114,21 +114,27 @@ class Ports(spa.Network):
                     stopwatch = t
                     state = 1
                     empty = hp.check_key_empty(keys, ports) # is a vector or 0
+                    tag_name = ""
+                    name = ""
                     if empty == 0:
                         str_key = str(len(ports))
-                        new_name = f"K_{str_key}"
-                        vocab.populate(new_name)
-                        keys.append(new_name)
-                        ports[new_name] = tag, value
-                        to_return[:] = vocab[new_name].v
+                        name = f"K_{str_key}"
+                        vocab.populate(name)
+                        keys.append(name)
+                        ports[name] = tag, value
+                        to_return[:] = vocab[name].v
                     elif empty != 0:
                         name = hp.from_vocab(empty, self.vocab)
                         ports[name] = tag, value
                         to_return[:] = empty
+                    tag_name = hp.from_vocab(tag, self.vocab)
+                    print(f"associating {name} with {tag_name}")
                 elif state == 1 and t > stopwatch + self.sleeptime:
                     stopwatch = 0.0
-                    state = 0
+                    state = 2
+                elif state == 2 and tag @ tag < self.theta:
                     to_return[:] = 0
+                    state = 0
                 return to_return
             return new
         #want 
