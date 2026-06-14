@@ -12,13 +12,20 @@ voc = spa.Vocabulary(d)
 voc.add("NULL", np.zeros(d))
 
 # inbox and outbox dicts should be of the form: 
-# {statevars: list of statevars, inputs: list of inputs, outputs: list of output,statevar tuples, input_nodes: list of tuples(input nodes name, label) - in order of inputs,
+# {statevars: list of statevars, inputs: list of inputs, outputs: list of output,statevar tuples, input_nodes: label - in order of inputs,
 # start: start argument, table: dfa table}
 
 #location should be a string - naming where the mailbox is
 
 class mail_box(spa.Network):
-    def __init__(self, vocab, theta, inbox_dict, outbox_dict, location, *args, **kwargs):
+    def __init__(self, 
+                 vocab:spa.Vocabulary, 
+                 theta:float, 
+                 inbox_dict:dict, 
+                 outbox_dict:dict, 
+                 location:str, 
+                 *args, **kwargs):
+
         super().__init__(label=f"{location}_mailbox", *args, **kwargs)
 
         self.vocab              = vocab
@@ -45,11 +52,11 @@ class mail_box(spa.Network):
             conf = nengo.Config(nengo.Ensemble)
             conf[nengo.Ensemble].neuron_type = nengo.neurons.Direct()
             with conf:
+                self.in_nodes = []
                 for i,v in enumerate(inbox_input_nodes):
-                    (node, name) = v 
-                     = spa.State(self.vocab, label = 'key in')
-            nengo.Connection(self.key_in.output, self.node_dfa.input_key)
-            nengo.Connection(self.pair_in.output, self.node_dfa.input_pair)
+                    self.in_nodes.append(spa.State(self.vocab, label = v))
+            for inputs, input_nodes in zip(inbox_dict["inputs"], self.in_nodes):
+                nengo.Connection()
 
 def direct_conf():
         conf = nengo.Config(nengo.Ensemble)
