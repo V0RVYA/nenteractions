@@ -2,6 +2,7 @@ import nengo
 import nengo_spa as spa
 import numpy as np
 import helper as hp
+from mailbox import MailBox 
 from neural_dfa import DFA, InputVar, StateVar
 from collections import UserDict
 
@@ -34,8 +35,7 @@ class Redex_Push(spa.Network):
         
         #NOTICE ME MARIA
         #remove this vocab addition when putting full thing together, because initialized in ports
-        tags = ["T_VAR","T_REF","T_ERA","T_NUM","T_CON","T_DUP","T_OPR","T_SWI"]
-        hp.add_voc(tags, self.vocab)
+        hp.add_voc(self.tags, self.vocab)
 
         rule_statevars = [("key1", spa.SemanticPointer),
                           ("key2", spa.SemanticPointer),   
@@ -113,21 +113,100 @@ class Redex_Push(spa.Network):
         rules_outputs = [
                 ("rule_out","rule")
                 ]
-        redex_push_adds = ["RPU_2", "RPT_1", "RPT_2", "RRULE"]
-        hp.add_voc(redex_push_adds, self.vocab)
+        mailbox = [ "RPU_2", "RPT_1", "RPT_2", "RRULE", "PAIR", "PORT"]
+        hp.add_voc(mailbox, self.vocab)
 
+        # mailbox in -> from link and from general interact. 
+
+        outbox_statevars = [("sadd",spa.SemanticPointer),
+                            ("radd_path", spa.SemanticPointer),
+                            ("command_path", spa.SemanticPointer),
+                            ("key_path", spa.SemanticPointer),
+                            ("radd_out_pa", spa.SemanticPointer),
+                            ("radd_out_po", spa.SemanticPointer),
+                            ("command_out_pa", spa.SemanticPointer),
+                            ("command_out_po", spa.SemanticPointer),
+                            ("command_path", spa.SemanticPointer),
+                            ("key_out_pa", spa.SemanticPointer),
+                            ("key_out_po", spa.SemanticPointer),
+                            ("key_path", spa.SemanticPointer)
+                            ]
+        inbox_statevars = [("command",spa.SemanticPointer),
+                           ("kt_path", spa.SemanticPointer),
+                           ("key_ru1_out",spa.SemanticPointer),
+                           ("key_ru2_out",spa.SemanticPointer),
+                           ("key_rt1_out",spa.SemanticPointer),
+                           ("tag_rt2_out",spa.SemanticPointer),
+                           ("tag_rru_out", spa.SemanticPointer)
+                           ]
+
+        outbox_table = {(self.vocab["PAIR"],):(self.vocab["NULL"], InputVar("return","radd_out_pa"), InputVar("command","command_out_pa"), InputVar("key","key_out_pa")),
+                        (self.vocab["PORT"],):(self.vocab["NULL"], InputVar("return","radd_out_po"), InputVar("command","command_out_po"), InputVar("key","key_out_po"))
+                        }
+
+        inbox_table = {(self.vocab["RPU_1"],):(self.vocab["NULL"], InputVar("key_tag","key_ru1_out")),
+                       (self.vocab["RPU_2"],):(self.vocab["NULL"], InputVar("key_tag","key_ru2_out")),
+                       (self.vocab["RPT_1"],):(self.vocab["NULL"], InputVar("key_tag","key_rt1_out")),
+                       (self.vocab["RPT_2"],):(self.vocab["NULL"], InputVar("key_tag","tag_rt2_out")),
+                       (self.vocab["RRULE"],):(self.vocab["NULL"], InputVar("key_tag","tag_rru_out")),
+                       }
+
+        outbox_inputs = [("return", self.dim),
+                         ("command", self.dim),
+                         ("key", self.dim)
+                         ]
+
+        inbox_inputs = [("key_tag",self.dim)]
+        
+        outbox_outputs = [("return address pair","radd_out_pa"),
+                          ("return address port","radd_out_po"),
+                          ("command pair","command_out_pa"),
+                          ("command port","command_out_po"),
+                          ("key pair","key_out_pa"),
+                          ("key port","key_out_po")
+                          ]
+
+        inbox_outputs = [("to_first", "key_ru1_out"),
+                         ("to_second", "key_ru2_out"),
+                         ("to_tag_1", "key_rt1_out"),
+                         ("to_tag_2", "tag_rt2_out"),
+                         ("to_rule", "tag_rru_out"),
+                         ]
+
+        outbox_input_nodes = [("return address input"),
+                              ("command input"),
+                              ("key input")]
+
+        inbox_input_nodes = [("key or tag input")]
+
+        outbox_start = (self.vocab["NULL"],)
+        inbox_start = (self.vocab["NULL"],)
+
+        outdict = {"statevars":     outbox_statevars, 
+                   "inputs":        outbox_inputs, 
+                   "outputs":       outbox_outputs, 
+                   "input_nodes":   outbox_input_nodes, 
+                   "start":         outbox_start, 
+                   "table":         outbox_table}
+
+        indict = {"statevars":      inbox_statevars, 
+                   "inputs":        inbox_inputs, 
+                   "outputs":       inbox_outputs, 
+                   "input_nodes":   inbox_input_nodes, 
+                   "start":         inbox_start, 
+                   "table":         inbox_table}
 
         # these are gonna interface with a spa.network in ports and pairs called mailbox, to rout the commands appropriately, and return the output to the next step of the process
         # that next step is what the return address does for us
         #TEST
         # want it to when given a pair key(array), get the string rep of it, if its in pairs add the pair to rpair as array (for temp storage during the push action)
-        # send a 3*dim array containing the return address(RPU_2), command(PA_FST) and the pair out
+        # send a 4*dim array containing the sending addess(PAIR), return address(RPU_2), command(PA_FST) and the pair out
         # if input requirements not met, just return array of zeros
         def redex_get_first(rpair, pair_dict):
             state = 0
             stopwatch = 0.0
             sleeptime = 0.1
-            to_return = np.zeros(3*self.dim)
+            to_return = np.zeros(4*self.dim)
             def get_fst(t,x):
                 nonlocal rpair, pair_dict, state, stopwatch, sleeptime, to_return
                 pair = x
@@ -138,7 +217,7 @@ class Redex_Push(spa.Network):
                     stopwatch = t
                     state = 2
                     rpair.append(pair)
-                    to_return[:] = np.concatenate([self.vocab["RPU_2"].v, self.vocab["PA_FST"].v, pair])
+                    to_return[:] = np.concatenate([self.vocab["PAIR"].v,self.vocab["RPU_2"].v, self.vocab["PA_FST"].v, pair])
                 elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
@@ -148,13 +227,13 @@ class Redex_Push(spa.Network):
         #TEST
         # receives the first port key as input (array), check that it's a valid key in ports_dict and that rpair is not empty
         # if yes add the port key to rport(temp storage for duration of push), retrieve the pair from rpair
-        # send the return address, command and pair out as a 3*self.dim array
-        #else send a zero array of size 3*self.dim
+        # send the address, return address, command and pair out as a 4*self.dim array
+        #else send a zero array of size 4*self.dim
         def redex_get_second(rports, rpair, port_dict):
             state = 0
             stopwatch = 0.0
             sleeptime = 0.1
-            to_return = np.zeros(3*self.dim)
+            to_return = np.zeros(4*self.dim)
             def get_snd(t,x):
                 nonlocal rports, rpair, port_dict, state, stopwatch, sleeptime, to_return
                 port = x
@@ -166,7 +245,7 @@ class Redex_Push(spa.Network):
                     state = 2
                     pair = rpair[0]
                     rports.append(port)
-                    to_return[:] = np.concatenate([self.vocab["RPT_1"].v, self.vocab["PA_SND"].v, pair])
+                    to_return[:] = np.concatenate([self.vocab["PAIR"], self.vocab["RPT_1"].v, self.vocab["PA_SND"].v, pair])
                 elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
@@ -176,13 +255,13 @@ class Redex_Push(spa.Network):
         #TEST
         # receiving the second port key (array) as input, convert to string form and test that it is a key in ports_dicts and that len(rports) is not 0
         # if yes: retrieve the first port key from rport, add the second port key to rport
-        # then return a 3*dim array containing the return address, command and first port key
-        # if above criteria are not met, return 3*dim array of 0s
+        # then return a 4*dim array containing the address, return address, command and first port key
+        # if above criteria are not met, return 4*dim array of 0s
         def fst_port_tag(rports, ports_dicts):
             state = 0
             stopwatch = 0.0
             sleeptime = 0.1
-            to_return = np.zeros(3*self.dim)
+            to_return = np.zeros(4*self.dim)
             def get_tag(t,x):
                 nonlocal rports, ports_dicts, state, stopwatch, sleeptime, to_return
                 port2 = x
@@ -194,7 +273,7 @@ class Redex_Push(spa.Network):
                     state = 2
                     port1 = rports[0]
                     rports[1] = port2
-                    to_return[:] = np.concatenate([self.vocab["RPT_2"].v, self.vocab["P_GTAG"].v, port1])
+                    to_return[:] = np.concatenate([self.vocab["PORT"], self.vocab["RPT_2"].v, self.vocab["P_GTAG"].v, port1])
                 elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
@@ -204,13 +283,13 @@ class Redex_Push(spa.Network):
         #TEST
         # want it when receiving first port tag (array),convert to string and check that it is in the tag list and check that len(rports) == 2 and len(rtags) = 0
         # if yes: store it in rtags (as array), retrieve second port key(array) from rports
-        # send out, a 3*dim array containing return address, command and second port key
-        # if above criteria not met return 3*dim array of 0's
+        # send out, a 4*dim array containing the address, return address, command and second port key
+        # if above criteria not met return 4*dim array of 0's
         def snd_port_tag(rports, rtags):
             state = 0
             stopwatch = 0.0
             sleeptime = 0.1
-            to_return = np.zeros(3*self.dim)
+            to_return = np.zeros(4*self.dim)
             def get_tag(t,x):
                 nonlocal rports, rtags, state, stopwatch, sleeptime, to_return 
                 tag1 = x
@@ -222,7 +301,7 @@ class Redex_Push(spa.Network):
                     state = 2
                     port2 = rports[1]
                     rtags.append(tag1)
-                    to_return[:] = np.concatenate([self.vocab["RRULE"].v, self.vocab["P_GTAG"].v, port2])
+                    to_return[:] = np.concatenate([self.vocab["PORT"], self.vocab["RRULE"].v, self.vocab["P_GTAG"].v, port2])
                 elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
@@ -249,13 +328,17 @@ class Redex_Push(spa.Network):
                     stopwatch = t
                     state = 2
                     tag1 = rtags[0]
-                    to_return[:] = np.concatenate(tag1, tag2)
+                    to_return[:] = np.concatenate([tag1, tag2])
                 elif state == 2 and t > stopwatch + sleeptime:
                     state = 0
                     stopwatch = 0.0
                     to_return[:] = 0
                 return to_return
             return rule
+        #connect get_rule directly to rule DFA
+
+
+
         #TEST
         # want it to receive a rule(array), retrieve rule string name check if it's in rules also make sure rpair is not empty
         # if criteria met return 1, and then:
@@ -308,25 +391,56 @@ class Redex_Push(spa.Network):
             return push_to
 
         with self:
+            #setting up DFA's
             self.rule_dfa = DFA(rule_statevars, rules_inputs, rules_outputs, rules_table, self.vocab, start=(self.vocab["I_NULL"], self.vocab["I_NULL"], None))
-            # setting up inputs
+            self.mail_box = MailBox(self.vocab, self.theta, indict, outdict, location = "push_redex")
 
             #setting up outputs
-            self.get_fst = nengo.Node(output = redex_get_first(self.rpair, self.pairs_dict), size_in = self.dim, size_out = 3*self.dim, label = 'redex_push_get1')
-            self.get_snd = nengo.Node(output = redex_get_second(self.rports, self.rpair, self.ports_dict), size_in = self.dim, size_out = 3*self.dim, label = 'redex_push_get2')
-            self.fst_tag = nengo.Node(output = fst_port_tag(self.rports, self.ports_dict), size_in = self.dim, size_out = 3*self.dim, label = 'redex_push_tag1')
-            self.snd_tag = nengo.Node(output = snd_port_tag(self.rports, self.rtags), size_in = self.dim, size_out = 3*self.dim, label = 'redex_push_tag2')
+            self.get_fst = nengo.Node(output = redex_get_first(self.rpair, self.pairs_dict), size_in = self.dim, size_out = 4*self.dim, label = 'redex_push_get1')
+            self.get_snd = nengo.Node(output = redex_get_second(self.rports, self.rpair, self.ports_dict), size_in = self.dim, size_out = 4*self.dim, label = 'redex_push_get2')
+            self.fst_tag = nengo.Node(output = fst_port_tag(self.rports, self.ports_dict), size_in = self.dim, size_out = 4*self.dim, label = 'redex_push_tag1')
+            self.snd_tag = nengo.Node(output = snd_port_tag(self.rports, self.rtags), size_in = self.dim, size_out = 4*self.dim, label = 'redex_push_tag2')
             self.getRule = nengo.Node(output = get_rule(self.rports, self.rtags), size_in = self.dim, size_out = 2*self.dim, label = 'redex_push_rule')
             self.red_psh = nengo.Node(output = push(self.rbag_dict, self.rpair, self.keys), size_in = self.dim, size_out = 1, label = 'redex_push_push')
 
             #connecting dfa outputs to function ports performing operations on nodes_dict
+            # rule getting and final push
             nengo.Connection(self.getRule[:self.dim], self.rule_dfa.statevars.ordered_svs[0].input)
             nengo.Connection(self.getRule[self.dim:2*self.dim], self.rule_dfa.statevars.ordered_svs[1].input)
             nengo.Connection(self.rule_dfa.ordered_outputs[0], self.red_psh)
-            #print(list(rule_dfa.ordered_outputs))
+            
+            # connections out for getting first port key in pair
+            nengo.Connection(self.get_fst[:self.dim], self.mail_box.outbox_dfa.statevars.ordered_svs[0].input)
+            nengo.Connection(self.get_fst[self.dim:2*self.dim], self.mail_box.out_nodes[0].input)
+            nengo.Connection(self.get_fst[2*self.dim:3*self.dim], self.mail_box.out_nodes[1].input)
+            nengo.Connection(self.get_fst[3*self.dim:4*self.dim], self.mail_box.out_nodes[2].input)
+                
+            #connections out for getting second port key in pair
+            nengo.Connection(self.get_snd[:self.dim], self.mail_box.outbox_dfa.statevars.ordered_svs[0].input)
+            nengo.Connection(self.get_snd[self.dim:2*self.dim], self.mail_box.out_nodes[0].input)
+            nengo.Connection(self.get_snd[2*self.dim:3*self.dim], self.mail_box.out_nodes[1].input)
+            nengo.Connection(self.get_snd[3*self.dim:4*self.dim], self.mail_box.out_nodes[2].input)
+            
+            # connections out for getting tag of first port in pair
+            nengo.Connection(self.fst_tag[:self.dim], self.mail_box.outbox_dfa.statevars.ordered_svs[0].input)
+            nengo.Connection(self.fst_tag[self.dim:2*self.dim], self.mail_box.out_nodes[0].input)
+            nengo.Connection(self.fst_tag[2*self.dim:3*self.dim], self.mail_box.out_nodes[1].input)
+            nengo.Connection(self.fst_tag[3*self.dim:4*self.dim], self.mail_box.out_nodes[2].input)
+            
+            # connections out for getting tag of second port in pair
+            nengo.Connection(self.snd_tag[:self.dim], self.mail_box.outbox_dfa.statevars.ordered_svs[0].input)
+            nengo.Connection(self.snd_tag[self.dim:2*self.dim], self.mail_box.out_nodes[0].input)
+            nengo.Connection(self.snd_tag[2*self.dim:3*self.dim], self.mail_box.out_nodes[1].input)
+            nengo.Connection(self.snd_tag[3*self.dim:4*self.dim], self.mail_box.out_nodes[2].input)
 
-
-
+            # connections in to redex push commands
+            nengo.Connection(self.mail_box.inbox_dfa.ordered_outputs[0], self.get_fst)
+            nengo.Connection(self.mail_box.inbox_dfa.ordered_outputs[1], self.get_snd)
+            nengo.Connection(self.mail_box.inbox_dfa.ordered_outputs[2], self.fst_tag)
+            nengo.Connection(self.mail_box.inbox_dfa.ordered_outputs[3], self.snd_tag)
+            nengo.Connection(self.mail_box.inbox_dfa.ordered_outputs[4], self.getRule)
+            
+            
 
 class Redexes(spa.Network):
     # this network manages the pairs and ports in GNet 
@@ -340,29 +454,31 @@ class Redexes(spa.Network):
         self.ports_dict = ports
         self.pairs_dict = pairs
 
-        redex_args = ["R_PUSH", "R_POP", "R_NULL", "R_GO", "R_DONE"]
+        redex_args = ["R_PUSH", "R_POP", "R_NULL", "R_GO", "R_DONE", "RPU_1"]
         hp.add_voc(redex_args, self.vocab)
 
         redex_statevars = [("command", spa.SemanticPointer),
-                           ("command_node", spa.SemanticPointer),
+                           ("command_path", spa.SemanticPointer),
                            ("path", spa.SemanticPointer),
-                           ("push_out", spa.SemanticPointer),
-                           ("pop_out", spa.SemanticPointer)
+                           ("push_out_command", spa.SemanticPointer),
+                           ("push_out_key", spa.SemanticPointer),
+                           ("pop_out_command", spa.SemanticPointer)
                            ]
         
         redex_table = {
-                (self.vocab["R_PUSH"], None, None): (self.vocab["R_NULL"], None, InputVar("pair", "push_out")),
-                (self.vocab["R_POP"], None, None): (self.vocab["R_NULL"], self.vocab["R_GO"], StateVar("command_node", "pop_out"))
+                (self.vocab["R_PUSH"],): (self.vocab["RPU_1"], StateVar("command", "push_out_command"), InputVar("pair", "push_out_key")),
+                (self.vocab["R_POP"],): (self.vocab["R_GO"], StateVar("command", "pop_out_command"))
                 }
        
         redex_inputs = [
                 ("pair", self.dim),
                 ]
         
-        redex_outputs = [("to_push", "push_out"),
-                         ("to_pop", "pop_out"),
+        redex_outputs = [("to_push_cmd", "push_out_command"),
+                         ("to_push_key","push_out_key"),
+                         ("to_pop", "pop_out_command"),
                          ]
-        
+
         #TEST
         #given the go call (array) -> convert to string, check if it's "R_GO" 
         # -> split rbag_dict into it's low and high component
@@ -412,9 +528,10 @@ class Redexes(spa.Network):
             self.redex_pop = nengo.Node(output = pop_redex(self.rbag_dict), size_in = self.dim, size_out = self.dim, label = 'redex_popper')
             self.redex_push = Redex_Push(self.vocab, self.theta, self.rbag_dict, self.ports_dict, self.pairs_dict, self.keys)
  
-            #connecting dfa outputs to function ports performing operations on nodes_dict
-            nengo.Connection(self.redex_dfa.ordered_outputs[1], self.redex_pop) 
-            nengo.Connection(self.redex_dfa.ordered_outputs[0], self.redex_push.get_fst)
+            #connecting dfa outputs to pop node, and push inbox
+            nengo.Connection(self.redex_dfa.ordered_outputs[2], self.redex_pop) 
+            nengo.Connection(self.redex_dfa.ordered_outputs[0], self.redex_push.mail_box.inbox_dfa.statevars.ordered_svs[0].input)
+            nengo.Connection(self.redex_dfa.ordered_outputs[1], self.redex_push.mail_box.in_nodes[0].input)
 
 
 with spa.Network() as model:

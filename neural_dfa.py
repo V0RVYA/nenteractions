@@ -303,6 +303,7 @@ class DFA(spa.Network):
                                          )
                     elif isinstance(c, int): # this may be broken but who knows
                         weightvec = (2/(0.7 * len(int_map[(j, c)])) * (2*int_map[(j, c)]-1))
+                        print(weightvec.shape, int_map[(j, c)])
                         nengo.Connection(sv.output,
                                          inp,
                                          transform=(weightvec.reshape((1, len(weightvec)))

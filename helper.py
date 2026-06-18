@@ -32,4 +32,18 @@ def from_vocab(pointer, vocab):
     word = lis[best_index]
     return word
     
+def str_state(state):
+    repr = []
+    for s in state:
+        if isinstance(s, spa.SemanticPointer):
+            repr.append(f"pointer({s.name})")
+        else:
+            repr.append(str(s))
+    return repr
 
+def str_dic(dic):
+    repr = []
+    for k, v in dic.items():
+        repr.append(f"trigger: {str_state(k)}")
+        repr.append(f"next: {str_state(v)}")
+    return repr
