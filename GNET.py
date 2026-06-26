@@ -7,7 +7,7 @@ from collections import UserDict
 
 
 class Nodes(spa.Network):
-    # this network manages the pairs and ports in GNet 
+    # this network manages the nodes_dict in GNet 
     def __init__(self, vocab, theta, nodes, keys, nloc, label = 'nodes'):
         super().__init__(label=label)
         self.vocab = vocab
@@ -19,6 +19,8 @@ class Nodes(spa.Network):
 
         node_args = ["N_CREATE", "N_STORE", "N_LOAD", "N_EXCHANGE", "N_TAKE", "N_FREE"]
         hp.add_voc(node_args, self.vocab)
+
+        #defines main table that routes command and key to correct node(performing functions defined below)
 
         node_statevars = [("command", spa.SemanticPointer),
                           ("k_path", spa.SemanticPointer),
@@ -217,7 +219,7 @@ class Nodes(spa.Network):
             nengo.Connection(self.node_dfa.ordered_outputs[5], self.node_free)
 
 class Vars(spa.Network):
-    # this network manages the pairs and ports in GNet 
+    # this network manages the vars_dict in GNet 
     def __init__(self, vocab, theta, var, keys, vloc, label = 'vars'):
         super().__init__(label=label)
         self.vocab = vocab
@@ -229,6 +231,8 @@ class Vars(spa.Network):
 
         var_args = ["V_CREATE", "V_STORE", "V_LOAD", "V_EXCHANGE", "V_TAKE", "V_FREE"]
         hp.add_voc(var_args, self.vocab)
+
+        # this routes the commands for var to the correct var node (performing functions defined below).
 
         var_statevars = [("command", spa.SemanticPointer),
                           ("k_path", spa.SemanticPointer),
@@ -427,6 +431,9 @@ class Vars(spa.Network):
             nengo.Connection(self.var_dfa.ordered_outputs[5], self.var_free)
 
 class GEnter(spa.Network):
+    # this performs variable substitution during an interaction and it will be the death of me lolololol
+    # variable interaction relies on var_dict being populated with chains of variables which point to each other
+    # we then go through each link in the chain and delete it, leaving us with one variable pointing to something that is not another variable in vars_dict.
     def __init__(self,
                  vocab: spa.Vocabulary,
                  theta: float,
@@ -437,12 +444,14 @@ class GEnter(spa.Network):
         self.dim = vocab.dimensions
         self.theta = theta
         self.ports = ports
-        self.var = []
-        self.val = []
-
+        self.var = [] #holds current variable being substituted -> will be used to return final variable being substituted
+        self.val = [] #holds value of current variable being substituted -> if it's also a variable will be moved into var and old var will be deleted from var_dict
+        
         genter_tags = ["E_GT", "E_CV", "E_XV", "E_CP", "E_NULL", "PORT", "PAIR", "GNET", "P_TAG", "P_VAL"]
         hp.add_voc(genter_tags, self.vocab)
-
+        
+        #inbox tracks where information is being received from and what step of the variable substitution process is expecting it
+        # passes appropriate key to appropriate places
         inbox_vars = [("radd", spa.SemanticPointer),
                       ("key_pass", spa.SemanticPointer),
                       ("key_out_gt", spa.SemanticPointer),
@@ -463,7 +472,9 @@ class GEnter(spa.Network):
                        (self.vocab["E_XV"],):(self.vocab["E_NULL"], InputVar("key", "key_out_xv"),),
                        (self.vocab["E_CP"],):(self.vocab["E_NULL"], InputVar("key", "key_out_cp"),),
                        }
-
+        # paths => let us passthrough states and inputs to their correct outputs
+        # port outs go to ports handler, pair outs go to pairs handler
+        # gnet + gcommand + inside the house call go to GNET  
         outbox_vars = [("add", spa.SemanticPointer),
                        ("inside_pass", spa.SemanticPointer),
                        ("radd_pass", spa.SemanticPointer),
@@ -504,14 +515,14 @@ class GEnter(spa.Network):
                          ("key1_port","key1_port_out"),
                          ("key1_gnet","key1_gnet_out"),
                          ("key2_gnet","key2_gnet_out")]
-
+        # might run into issue below with gnet one, cause var exchange and var take have different amounts of input needs, but gnet inbox should handle it, fingers crossed, prayers out.
         outbox_table = {(self.vocab["PAIR"],):(self.vocab["E_NULL"], InputVar("radd", "radd_pair_out"), InputVar("command","command_pair_out"),InputVar("key1","key1_pair_out")),
                         (self.vocab["GNET"],):(self.vocab["E_NULL"], InputVar("inside", "inside_out"), InputVar("radd", "radd_gnet_out"), InputVar("gcommand","gcommand_out"), InputVar("command","command_gnet_out"), InputVar("key1","key1_gnet_out"), InputVar("key2","key2_gnet_out")),
-                        (self.vocab["E_CV"],):(self.vocab["E_NULL"], InputVar("key", "key_out_cv"),),
-                        (self.vocab["E_XV"],):(self.vocab["E_NULL"], InputVar("key", "key_out_xv"),),
-                        (self.vocab["E_CP"],):(self.vocab["E_NULL"], InputVar("key", "key_out_cp"),),
+                        (self.vocab["PORT"],):(self.vocab["E_NULL"], InputVar("radd", "radd_port_out"), InputVar("command","command_port_out"),InputVar("key1","key1_port_out"))
                        }
-
+        # receive a port key from gnet (as array)
+        # check it's a valid port key, if yes output a command for port to get tag 4*dim arry = PORT + E_CV(return address) + P_TAG (port command) + port_key
+        # else return 4*dim of zeros
         def e_get_tag(ports_dict):
             state = 0
             sleeptime = 0.1
@@ -534,6 +545,7 @@ class GEnter(spa.Network):
                 return to_return
             return enter
 
+        #check_tag is a DFA that ends the substitution process if the tag of the port held in var_dict is not var -> no variable to substitute. 
         check_tag_statevars = [("tag", spa.SemanticPointer),
                                ("command", spa.SemanticPointer),
                                ("command_path", spa.SemanticPointer),
@@ -558,7 +570,10 @@ class GEnter(spa.Network):
                            (self.vocab["T_SWI"],):(self.vocab["CHK_NULL"], self.vocab["NO_GO"], StateVar("command", "command_no")),
                            (self.vocab["CHK_NULL"],):(self.vocab["CHK_NULL"], self.vocab["NO_GO"], StateVar("command", "command_no"))
                            }
-
+        # if tag is not var, or var val is none -> this exits the substitution process and returns the port key held in var
+        # logic is handled by check_var and check_val
+        # if it receives a no_go command (as array) => will end the substitution process, pop the only value in the var dict (an array port key) and return it to gnet outbox 
+        # else it passes zeros of size dim
         def exit(var, val):
             state = 0
             stopwatch = 0.0
@@ -581,8 +596,11 @@ class GEnter(spa.Network):
                     to_return[:] = 0
                 return to_return
             return breaker
-
-        def var_exchange(var):
+        # if this receives the go command from check_tag dfa (array size dim)
+        # takes the port key from var, and packages it into a command of size 4*dim = PORT + E_XV + P_VAL + port(key)
+        # sends it to ports to retrieve value through the outbox 
+        # else if zeros or something else received -> return 4*dim array of zeros.
+        def check_tag2(var):
             state = 0
             stopwatch = 0.0
             sleeptime = 0.1
@@ -605,10 +623,27 @@ class GEnter(spa.Network):
                 return to_return
             return make_command 
 
+        def var_exchange(var, val):
+            state = 0
+            stopwatch = 0.0
+            sleeptime = 0.1
+            to_return = np.zeros(6*self.dim)
+            def make_command(t,x):
+                nonlocal var, state, stopwatch, sleeptime, to_return
+                value = x
+                if state == 0 and if val.dot(self.vocab["NULL"].v, value) =< self.theta:
+                    state = 1
+                if state == 1:
+
+
+
 
 
 class GNET(spa.Network):
     # this handles the representation of the entire graph network 
+    # holds node_handler, vars-handler and genter handler (does the variable substitution)
+    # has the most complex kind of mailbox.
+    #need to add genter_handler into it once genter is done
     def __init__(self, vocab, theta, ports, pairs, keys, nloc, vloc, nodes_dict, label = 'net'):
         super().__init__(label=label)
         self.vocab = vocab
@@ -684,11 +719,6 @@ class GNET(spa.Network):
             nengo.Connection(self.gnet_dfa.ordered_outputs[4], self.var_manager.key_in.input)
             nengo.Connection(self.gnet_dfa.ordered_outputs[5], self.var_manager.port_in.input)
 
-class Def(spa.Network):
-    pass
-
-class Book(spa.Network):
-    pass 
 
 
 with spa.Network() as model:
